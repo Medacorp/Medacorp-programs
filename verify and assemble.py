@@ -127,7 +127,7 @@ while True:
                     print("VERIFY: Advancement data is still in world data")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")) == True:
-                    print("VERIFY: Scoreboard is still in world data")
+                    print("VERIFY: Scoreboard data is still in world data")
                     succeed = False
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
@@ -269,7 +269,7 @@ while True:
                     print("RESET: Advancement data has been deleted")
                     shutil.rmtree(os.path.join(path + map + "/advancements"))
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")) == True:
-                    print("RESET: Scoreboard has been deleted")
+                    print("RESET: Scoreboard data has been deleted")
                     os.remove(os.path.join(path + map + "/data/scoreboard.dat"))
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
@@ -355,11 +355,15 @@ while True:
             elif selected == "reset" and alreadyReset == False:
                 print("Reset already reset the map")
             elif selected == "build" and alreadyBuild == False:
-                print("Running download building")
-                print("\r\nBUILD: did you make sure to verify before building? (Type \"y\" or \"n\")")
+                print("Running download building\r\n")
+                if alreadyReset == False and verifySucceeded == False:
+                    print("BUILD: did you make sure to verify before building? (Type \"y\" or \"n\")")
                 verify = "u"
                 while verify == "u":
-                    verify = readchar.readkey()
+                    if alreadyReset == False and verifySucceeded == False:
+                        verify = readchar.readkey()
+                    else:
+                        verify = "y"
                     if verify != "n" and verify != "y":
                         verify = "u"
                     elif verify == "y":
