@@ -32,10 +32,11 @@ paths = open(executionPath + "paths.txt", "w")
 paths.write("execution=" + executionPath + "\nworlds=" + WorldsPath)
 paths.close()
 if os.path.exists(executionPath + "logs/latest.log"): os.remove(executionPath + "logs/latest.log")
-now = datetime.now()
-dateFormat = now.strftime("%Y-%m-%d")
-timeFormat = now.strftime("%H:%M:%S")
+dateNow = datetime.now()
+dateFormat = dateNow.strftime("%Y-%m-%d")
 def write(string: str, debug: bool):
+    timeNow = datetime.now()
+    timeFormat = timeNow.strftime("%H:%M:%S")
     if debug == False: print(string)
     with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
         with redirect_stdout(logFile):
