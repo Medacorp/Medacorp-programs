@@ -40,13 +40,18 @@ def write(string: str, debug: bool):
     if debug == False: print(string)
     with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
         with redirect_stdout(logFile):
-            if debug == False: print("[" + timeFormat + "]" + string)
-            else: print("[" + timeFormat + "] [DEBUGGER]" + string)
+            if debug == False: print("[" + timeFormat + "] " + string)
+            else: print("[" + timeFormat + "] [DEBUGGER] " + string)
     with open(executionPath + "logs/latest.log", "a") as logFile:
         with redirect_stdout(logFile):
             if debug == False: print("[" + timeFormat + "] " + string)
             else: print("[" + timeFormat + "] [DEBUGGER] " + string)
 
+if os.path.exists(executionPath + "logs/" + dateFormat + ".log"): 
+    with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
+        with redirect_stdout(logFile):
+            print("\n\n")
+write("Running program", True)
 write("Path zips get created in: " + executionPath, False)
 write("Path worlds get searched for: " + WorldsPath, False)
 write("To change, modify \"paths.txt\" in the same folder as this program is located", False)
@@ -381,7 +386,7 @@ while True:
                                 write("RESET: Left unsaved structure files alone", False)
                     if missingPackMcmeta == False and structureDelete == False:
                         alreadyReset = True
-            elif selected == "reset" and alreadyReset == False:
+            elif selected == "reset" and alreadyReset == True:
                 write("Reset already reset the map", False)
             elif selected == "build" and alreadyBuild == False:
                 write("Running download building", False)
