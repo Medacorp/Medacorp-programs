@@ -501,7 +501,7 @@ while True:
                             shutil.rmtree(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/poi"))
                 if succeed:
                     write("RESET: Map is properly reset", False)
-                    alreadyReset = True
+                    verifySucceeded = True
                 else:
                     write("RESET: Map is not fully reset, some manual work is still needed", False)
                     if missingDimension: write("RESET: Some dimensions are missing generation data", False)
