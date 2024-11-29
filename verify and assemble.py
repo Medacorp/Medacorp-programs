@@ -34,7 +34,7 @@ if os.path.exists(executionPath + "logs/" + dateFormat + ".log"):
         with redirect_stdout(logFile):
             print("\n\n")
 if os.path.exists(executionPath + "logs/latest.log"): os.remove(executionPath + "logs/latest.log")
-write("Running program", True)
+write("Running \"verify and assemble\" program", True)
 if os.path.exists(executionPath + "paths.txt"):
     paths = open(executionPath + "paths.txt", "r")
     i = 0
@@ -81,7 +81,7 @@ if WorldsPath.endswith("/") == False: WorldsPath = WorldsPath + "/"
 paths = open(executionPath + "paths.txt", "w")
 paths.write("builds=" + ZipsPath + "\nworlds=" + WorldsPath)
 paths.close()
-write("File path where builds and logs get created: " + ZipsPath[slice(0,-1)], False)
+write("File path where builds get created: " + ZipsPath[slice(0,-1)], False)
 write("File path where worlds get searched for: " + WorldsPath[slice(0,-1)], False)
 write("You can also find the logs and a file to modify the above paths here: " + executionPath[slice(0,-1)], False)
 print("")
