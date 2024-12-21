@@ -166,6 +166,7 @@ while True:
                 break
             elif selected == "rules":
                 write("Rules:", False)
+                write("* Game rule sendCommandFeedback set to false", False)
                 write("* No player data remaining", False)
                 write("* No save progress remaining", False)
                 write("* No additional data packs enabled", False)
@@ -192,6 +193,10 @@ while True:
                 #Check level.dat
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
+                for tag in nbtfile["Data"]["GameRules"].tags:
+                    if tag.name == "sendCommandFeedback" and tag.value == "true":
+                        write("VERIFY: Game rule sendCommandFeedback is set to true", False)
+                        succeed = False
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "Player":
                         write("VERIFY: Player data is present in level.dat", False)
@@ -297,6 +302,7 @@ while True:
                     write("VERIFY: Dimension minecraft:the_end has POI files", False)
                     succeed = False
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
+                    #This needs to be recursive until it runs out of folders; all folders with a region subfolder are dimensions (Fix #1)
                     for dID in [name for name in os.listdir(path + map + "/dimensions/" + d) if os.path.isdir(os.path.join(path + map + "/dimensions/" + d, name))]:
                         if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/chunks.dat")):
                             write("VERIFY: Dimension " + d + ":" + dID + " has forceloaded chunks", False)
@@ -327,6 +333,11 @@ while True:
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
                 modify = False
+                for tag in nbtfile["Data"]["GameRules"].tags:
+                    if tag.name == "sendCommandFeedback" and tag.value == "true":
+                        tag.value = "false"
+                        write("RESET: Game rule sendCommandFeedback set to false", False)
+                        modify = True
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "Player": 
                         write("RESET: Deleted player data in level.dat", False)
@@ -486,6 +497,7 @@ while True:
                     write("RESET: Dimension minecraft:the_end had its POI files deleted", False)
                     shutil.rmtree(os.path.join(path + map + "/DIM1/poi"))
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
+                    #This needs to be recursive until it runs out of folders; all folders with a region subfolder are dimensions (Fix #1)
                     for dID in [name for name in os.listdir(path + map + "/dimensions/" + d) if os.path.isdir(os.path.join(path + map + "/dimensions/" + d, name))]:
                         if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/chunks.dat")):
                             write("RESET: Dimension " + d + ":" + dID + " had its forceloaded chunks deleted", False)
