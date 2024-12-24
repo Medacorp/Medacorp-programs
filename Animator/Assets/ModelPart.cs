@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
@@ -134,13 +135,19 @@ public class ModelPart {
         string[] models = GetModel(variant);
         if (models.Length != 0) {
             foreach (string model in models) {
+                MinecraftAtlas atlas = null;
+                if (File.Exists(Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/minecraft/atlases/blocks.json"))) {
+                    atlas = JsonConvert.DeserializeObject<MinecraftAtlas>(File.ReadAllText(Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/minecraft/atlases/blocks.json")));
+                }
                 MinecraftModel minecraftModel = JsonConvert.DeserializeObject<MinecraftModel>(File.ReadAllText(model));
+                minecraftModel.name = model;
                 string path = Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/|||/models/");
                 List<string> knownParents = new(){model};
                 if (minecraftModel.parent != null) GetMinecraftModelParent(minecraftModel, path, knownParents);
 
                 if (minecraftModel.textures != null) {
                     minecraftModel.textures = updateTextureReferences(minecraftModel.textures);
+                    minecraftModel.textures = getTextureFiles(minecraftModel.textures, model, atlas);
                 }
 
                 compositeModel.Add(minecraftModel);
@@ -164,6 +171,33 @@ public class ModelPart {
         if (newTextures.Values.Where( value => value.StartsWith("#")).ToList().Count != 0) return updateTextureReferences(newTextures);
         return newTextures;
         
+    }
+    private Dictionary<string,string> getTextureFiles(Dictionary<string,string> textures, string modelpath, MinecraftAtlas atlas) {
+        Dictionary<string,string> files = new();
+        foreach (KeyValuePair<string,string> texture in textures) {
+            string[] split = {"minecraft","missingno"};
+            if (texture.Value.Contains(":")) split = texture.Value.Split(":");
+            else split[1] = texture.Value;
+            string filepath = Regex.Replace(modelpath,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/" + split[0] + "/textures/" + split[1] + ".png");
+            string newtexture = "missingno";
+            if (File.Exists(filepath)) {
+                newtexture = filepath;
+            }
+            else if (atlas != null && atlas.sources.Count != 0) {
+                foreach (MinecraftAtlasSource source in atlas.sources) {
+                    if (split[1].StartsWith(source.prefix)) {
+                        filepath = Regex.Replace(modelpath,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/" + split[0] + "/textures/" + split[1].Replace(source.prefix,source.source + "/") + ".png");
+                        break;
+                    }
+                }
+                if (File.Exists(filepath)) {
+                    newtexture = filepath;
+                }
+            }
+            files.Add(texture.Key,newtexture);
+            
+        }
+        return files;
     }
     private MinecraftModel GetMinecraftModelParent(MinecraftModel model, string path, List<string> knownParents) {
         List<string> newKnownParents = knownParents;

@@ -4,6 +4,8 @@ using UnityEngine;
 
 [Serializable]
 public class MinecraftModel {
+    
+    public string name;
     public string parent;
 
     public Dictionary<string, string> textures;
@@ -87,7 +89,7 @@ public class MinecraftModelRotation {
 [Serializable]
 public class MinecraftModelFace {
 
-    public short? rotation;
+    public float rotation;
     public string texture;
     public float[] uv;
 
@@ -118,5 +120,20 @@ public class MinecraftModelDisplay {
         if (scale != null) return new(scale[0],scale[1],scale[2]);
         return new(1,1,1);
     }
+
+}
+
+[Serializable]
+public class MinecraftAtlas {
+    public List<MinecraftAtlasSource> sources;
+}
+
+[Serializable]
+public class MinecraftAtlasSource {
+    public string type;
+    public string source;
+    public string prefix;
+
+    //I'm not sure how to code the variants in; for now this'll be fine; I'll just accept all texture paths and just use this for "renamed" paths
 
 }

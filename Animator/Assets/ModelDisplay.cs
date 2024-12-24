@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
 using NUnit.Framework;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -14,6 +16,7 @@ public class ModelDisplay : MonoBehaviour
     GameObject autoScale;
     GameObject display;
     GameObject templateElement;
+    public Material templateMaterial;
     List<GameObject> displays;
 
     List<ConditionalModelPartOffset> conditionalOffsets;
@@ -95,15 +98,74 @@ public class ModelDisplay : MonoBehaviour
             int j = 0;
             foreach (MinecraftModelElement element in composite.elements) {
                 GameObject newelement = Instantiate(templateElement, new Vector3(0,0,0), new Quaternion(), newdisplay.transform);
-                newelement.SetActive(true);
                 newelement.name = "ModelElement"+j.ToString();
                 newelement.transform.localScale = element.GetSize();
                 newelement.transform.localPosition = element.GetCenter();
                 newelement.transform.RotateAround(newdisplay.transform.TransformPoint(element.GetRotationPoint()), element.GetRotationAxis(), -element.GetRotationAngle());
+                foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
+                    GameObject modelFace = null;
+                    if (face.Key == "up") modelFace = newelement.transform.GetChild(0).gameObject;
+                    else if (face.Key == "down") modelFace = newelement.transform.GetChild(1).gameObject;
+                    else if (face.Key == "north") modelFace = newelement.transform.GetChild(2).gameObject;
+                    else if (face.Key == "east") modelFace = newelement.transform.GetChild(3).gameObject;
+                    else if (face.Key == "south") modelFace = newelement.transform.GetChild(4).gameObject;
+                    else if (face.Key == "west") modelFace = newelement.transform.GetChild(5).gameObject;
+                    if (modelFace != null) {
+                        modelFace.SetActive(true);
+                        Mesh mesh = modelFace.GetComponent<MeshFilter>().mesh;
+                        List<float> uv = face.Value.uv.ToList();
+                        Vector2[] uvs = mesh.uv;
+                        Vector2 uvStart = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
+                        Vector2 uvEnd = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
+                        if (face.Value.rotation == 180 || face.Value.rotation == 270) {
+                            uvStart = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
+                            uvEnd = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
+                        }
+                        if (face.Value.rotation == 90 || face.Value.rotation == 270) {
+                            //Rotate 90 degrees
+                        }
+                        for (int l = 0; l < uvs.Length; l++)
+                        {
+                            uvs[l] = new Vector2(
+                                Mathf.Lerp(uvStart.x, uvEnd.x, uvs[l].x), 
+                                Mathf.Lerp(uvStart.y, uvEnd.y, uvs[l].y)
+                            );
+                            
+                        }
+                        mesh.uv = uvs;
+                        modelFace.GetComponent<MeshFilter>().mesh = mesh;
+                        Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite);
+                        if (texture != null)
+                        {
+                            modelFace.GetComponent<MeshRenderer>().material.mainTexture = texture;
+                        }
+
+                    }
+                }
                 if (heighestPoint < newelement.transform.position.y + newelement.transform.localScale.y) heighestPoint = newelement.transform.position.y + newelement.transform.localScale.y;
                 j++;
             }
         }
         cameraObject.GetComponent<CameraBehavior>().SetModelHeight(heighestPoint);
+    }
+    Texture2D LoadTexture(string key, MinecraftModel model)
+    {
+        string path = null;
+        if (model.textures.ContainsKey(key)) path = model.textures[key];
+        // Load the texture from the file path
+        if (path != null && path != "missingno") {
+            Texture2D texture = new Texture2D(2, 2); // Create a new texture (replace dimensions as needed)
+            texture.filterMode = FilterMode.Point;
+            byte[] fileData = System.IO.File.ReadAllBytes(path); // Read all bytes from the file
+
+            if (fileData != null)
+            {
+                // Load the image data into the texture
+                texture.LoadImage(fileData);
+                if (texture != null) return texture;
+            }
+        }
+        Debug.LogError("Couldn't find texture for key: " + key + " in the model " + model.name);
+        return null;
     }
 }
