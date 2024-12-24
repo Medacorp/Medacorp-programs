@@ -29,9 +29,10 @@ Implemented:
 * Selecting (Composite) model files per part (variant)
 * Saving selected models to file so that you're not asked every time you select that animation group
 * Models get data from parent (and parent's parent's, and parent's parent's parent's, and....)
-* Rendering selected models (PARTIALLY; UV mapping rotation doesn't work yet) with offsets defined by animation group
+* Rendering selected models with offsets defined by animation group
 
 To implement:
+* Animated texture support
 * Add checkboxes for tag toggling, using different offsets (eg `flipped_gravity`)
 * Add checkbox for toggling between armor stand and item display
 * - toggle built-in offset

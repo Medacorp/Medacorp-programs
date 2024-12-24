@@ -112,7 +112,7 @@ public class MinecraftModelDisplay {
     }
 
     public Quaternion GetRotation() {
-        if (rotation != null) return Quaternion.Euler(new(rotation[0],rotation[1],rotation[2]));
+        if (rotation != null) return Quaternion.Euler(new(rotation[0],-rotation[1],rotation[2]));
         return new();
     }
 

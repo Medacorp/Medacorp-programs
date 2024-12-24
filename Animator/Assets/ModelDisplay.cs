@@ -16,7 +16,7 @@ public class ModelDisplay : MonoBehaviour
     GameObject autoScale;
     GameObject display;
     GameObject templateElement;
-    public Material templateMaterial;
+    public Material transparentMaterial;
     List<GameObject> displays;
 
     List<ConditionalModelPartOffset> conditionalOffsets;
@@ -73,7 +73,7 @@ public class ModelDisplay : MonoBehaviour
         if (animationValues == null) Start();
         if (displays.Count != 0) {
             foreach (GameObject display in displays) {
-                Destroy(display);
+                if (display != this.display) Destroy(display);
             }
         }
         displays = new();
@@ -86,13 +86,13 @@ public class ModelDisplay : MonoBehaviour
             MinecraftModelDisplay value = new();
             try {
                 composite.display.TryGetValue("head", out value);
+                newdisplay.transform.localPosition = value.GetTranslation();
+                newdisplay.transform.localScale = value.GetScale();
+                newdisplay.transform.localRotation = value.GetRotation();
             }
             catch {
                 //Doesn't exist
             }
-            newdisplay.transform.localPosition = value.GetTranslation();
-            newdisplay.transform.localScale = value.GetScale();
-            newdisplay.transform.localRotation = value.GetRotation();
             i++;
             displays.Add(newdisplay);
             int j = 0;
@@ -101,7 +101,7 @@ public class ModelDisplay : MonoBehaviour
                 newelement.name = "ModelElement"+j.ToString();
                 newelement.transform.localScale = element.GetSize();
                 newelement.transform.localPosition = element.GetCenter();
-                newelement.transform.RotateAround(newdisplay.transform.TransformPoint(element.GetRotationPoint()), element.GetRotationAxis(), -element.GetRotationAngle());
+                newelement.transform.RotateAround(newdisplay.transform.TransformPoint(element.GetRotationPoint()), newelement.transform.InverseTransformDirection(element.GetRotationAxis()), -element.GetRotationAngle());
                 foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
                     GameObject modelFace = null;
                     if (face.Key == "up") modelFace = newelement.transform.GetChild(0).gameObject;
@@ -110,6 +110,7 @@ public class ModelDisplay : MonoBehaviour
                     else if (face.Key == "east") modelFace = newelement.transform.GetChild(3).gameObject;
                     else if (face.Key == "south") modelFace = newelement.transform.GetChild(4).gameObject;
                     else if (face.Key == "west") modelFace = newelement.transform.GetChild(5).gameObject;
+                    modelFace.transform.Rotate(modelFace.transform.InverseTransformDirection(modelFace.transform.up), face.Value.rotation, Space.Self);
                     if (modelFace != null) {
                         modelFace.SetActive(true);
                         Mesh mesh = modelFace.GetComponent<MeshFilter>().mesh;
@@ -117,26 +118,21 @@ public class ModelDisplay : MonoBehaviour
                         Vector2[] uvs = mesh.uv;
                         Vector2 uvStart = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
                         Vector2 uvEnd = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
-                        if (face.Value.rotation == 180 || face.Value.rotation == 270) {
-                            uvStart = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
-                            uvEnd = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
-                        }
-                        if (face.Value.rotation == 90 || face.Value.rotation == 270) {
-                            //Rotate 90 degrees
-                        }
                         for (int l = 0; l < uvs.Length; l++)
                         {
                             uvs[l] = new Vector2(
                                 Mathf.Lerp(uvStart.x, uvEnd.x, uvs[l].x), 
                                 Mathf.Lerp(uvStart.y, uvEnd.y, uvs[l].y)
                             );
-                            
                         }
                         mesh.uv = uvs;
                         modelFace.GetComponent<MeshFilter>().mesh = mesh;
                         Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite);
                         if (texture != null)
                         {
+                            if (IsAnyPixelTransparent(texture, new(uv[0] / 16, uv[3] / 16 * -1 + 1), new(uv[2] / 16, uv[1] / 16 * -1 + 1))) {
+                                modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+                            }
                             modelFace.GetComponent<MeshRenderer>().material.mainTexture = texture;
                         }
 
@@ -167,5 +163,32 @@ public class ModelDisplay : MonoBehaviour
         }
         Debug.LogError("Couldn't find texture for key: " + key + " in the model " + model.name);
         return null;
+    }
+    private bool IsAnyPixelTransparent(Texture2D texture, Vector2 uvMin, Vector2 uvMax)
+    {
+
+        int minX = Mathf.FloorToInt(uvMin.x * texture.width);
+        int minY = Mathf.FloorToInt(uvMin.y * texture.height);
+        int maxX = Mathf.FloorToInt(uvMax.x * texture.width);
+        int maxY = Mathf.FloorToInt(uvMax.y * texture.height);
+
+        minX = Mathf.Clamp(minX, 0, texture.width - 1);
+        minY = Mathf.Clamp(minY, 0, texture.height - 1);
+        maxX = Mathf.Clamp(maxX, 0, texture.width - 1);
+        maxY = Mathf.Clamp(maxY, 0, texture.height - 1);
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                Color pixelColor = texture.GetPixel(x, y);
+                if (pixelColor.a < 0.9f)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
