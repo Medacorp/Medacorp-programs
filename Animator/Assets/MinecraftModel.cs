@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 [Serializable]
@@ -68,7 +69,7 @@ public class MinecraftModelElement {
         float angle = 0;
         if (rotation != null) {
             angle = rotation.angle;
-            if (rotation.axis == 'z') angle = -angle;
+            if (rotation.axis == 'x') angle = -angle;
         }
         return angle;
     }
@@ -136,4 +137,56 @@ public class MinecraftAtlasSource {
 
     //I'm not sure how to code the variants in; for now this'll be fine; I'll just accept all texture paths and just use this for "renamed" paths
 
+}
+
+[Serializable]
+public class MinecraftMcmeta {
+    public MinecraftMcmetaAnimation animation;
+}
+
+[Serializable]
+public class MinecraftMcmetaAnimation {
+    public bool interpolate;
+    public int width;
+    public int height;
+    public int frametime;
+
+    public List<object> frames;
+
+    public List<MinecraftMcmetaAnimationFrame> parsedFrames;
+    public void ParseFrames()
+    {
+        parsedFrames = new List<MinecraftMcmetaAnimationFrame>();
+
+        int frametime = 1;
+        if (this.frametime != 0) frametime = this.frametime;
+
+        if (frames != null && frames.Count != 0) {
+            foreach (var frame in frames)
+            {
+                // If the frame is an integer, create a FrameData with default time=1
+                if (frame is int)
+                {
+                    parsedFrames.Add(new MinecraftMcmetaAnimationFrame
+                    {
+                        index = (int)frame,
+                        time = frametime
+                    });
+                }
+                else if (frame is JObject)
+                {
+                    // If the frame is a JObject (an object), parse it as a FrameData
+                    var frameObj = frame as JObject;
+                    MinecraftMcmetaAnimationFrame parsedFrame = frameObj.ToObject<MinecraftMcmetaAnimationFrame>();
+                    parsedFrames.Add(parsedFrame);
+                }
+            }
+        }
+    }
+}
+
+[Serializable]
+public class MinecraftMcmetaAnimationFrame {
+    public int index;
+    public int time;
 }

@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 
 public class Main : MonoBehaviour
 {
-    string executionPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+    private string executionPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
     private string worldsPath;
     public GameObject worldSelector;
     private string selectedWorld;
@@ -45,10 +45,15 @@ public class Main : MonoBehaviour
     public GameObject variantNamePopUpError;
     public GameObject variantNamePopUpButton;
     public GameObject variantNamePopUpButtonText;
-    public GameObject modelOrigin;
+    public GameObject entity;
     public GameObject templateModelPart;
+    public GameObject templateTagToggle;
+    public GameObject entityOffsetInput;
     public List<GameObject> modelParts;
-    public List<string> enabledTags;
+    public List<string> enabledTags = new();
+    private List<GameObject> tagToggles = new();
+    private List<string> createdTagToggles = new();
+    private GameObject selectedModelPart;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     
     void Start()
@@ -148,6 +153,8 @@ public class Main : MonoBehaviour
         animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         parts = new();
+        SetSelectedModelPart(null);
+        ClearTagToggles();
         editModelsButton.GetComponent<Button>().interactable = false;
         editModelsTab.SetActive(false);
     }
@@ -182,6 +189,8 @@ public class Main : MonoBehaviour
         animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         parts = new();
+        SetSelectedModelPart(null);
+        ClearTagToggles();
         editModelsButton.GetComponent<Button>().interactable = false;
         editModelsTab.SetActive(false);
     }
@@ -192,6 +201,8 @@ public class Main : MonoBehaviour
             animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
             animationSelector.GetComponent<TMP_Dropdown>().value = 0;
             parts = new();
+            SetSelectedModelPart(null);
+            ClearTagToggles();
             editModelsButton.GetComponent<Button>().interactable = false;
         }
         else {
@@ -225,6 +236,8 @@ public class Main : MonoBehaviour
     }
     private void GetListOfParts(string path, string[] ID) {
         parts = new();
+        SetSelectedModelPart(null);
+        ClearTagToggles();
         if (File.Exists(path)) {
             singleModelObject = false;
             foreach (string line in File.ReadLines(path)) {
@@ -294,30 +307,80 @@ public class Main : MonoBehaviour
                     string newpath = path.Replace("call_part_function",part.GetName());
                     if (File.Exists(newpath)) {
                         foreach (string line in File.ReadLines(newpath)) {
-                            if (line.Contains("teleport") && line.Contains("^")) {
-                                string[] splitLine = line.Split("teleport");
+                            if (line.Contains("teleport @s") && line.Contains("^")) {
+                                string[] splitLine = line.Split("teleport @s");
                                 splitLine = splitLine[splitLine.Length-1].Split(" ~");
                                 string[] offsets = splitLine[0].Split(" ^");
-                                offsets[0] = offsets[0].Replace(" @s","").Replace("[","").Replace("]","").Replace(" ","");
+                                offsets[0] = offsets[0].Replace("[","").Replace("]","").Replace(" ","");
                                 if (offsets[0] == " ") offsets[0] = "";
                                 if (offsets[1].Length == 0) offsets[1] = "0";
                                 if (offsets[2].Length == 0) offsets[2] = "0";
                                 if (offsets[3].Length == 0) offsets[3] = "0";
                                 float[] offsetfloats = {(float)Convert.ToDouble(offsets[1]),(float)Convert.ToDouble(offsets[2]),-(float)Convert.ToDouble(offsets[3])};
                                 part.addConditionalOffset(offsets[0],offsetfloats);
+                                if (offsets[0] != "") CreateTagToggles(offsets[0]);
+                            }
+                            else if (line.Contains("data modify entity @s") && line.Contains("Pose.Head")) {
+                                string[] splitLine = line.Split("data modify entity @s");
+                                splitLine = splitLine[splitLine.Length-1].Split(" Pose.Head");
+                                string[] strings = splitLine[1].Replace("[","").Replace("]","").Split(" set value ");
+                                splitLine[0] = splitLine[0].Replace("[","").Replace("]","").Replace(" ","");
+                                strings[1] = strings[1].Replace("f","");
+                                if (strings[0] != "") part.addConditionalPose(splitLine[0], Convert.ToSingle(strings[1]), Convert.ToInt32(strings[0]));
+                                else {
+                                    float[] defaultPose = {0,0,0};
+                                    strings = strings[1].Replace("f","").Replace("[","").Replace("f]","").Split(",");
+                                    defaultPose[0] = Convert.ToSingle(strings[0]);
+                                    defaultPose[1] = Convert.ToSingle(strings[1]);
+                                    defaultPose[2] = Convert.ToSingle(strings[2]);
+                                    part.addConditionalPose(splitLine[0], defaultPose);
+                                }
+                                if (splitLine[0] != "") CreateTagToggles(splitLine[0]);
                             }
                         }
+                            
                     }
                 }
-                GameObject modelPart = Instantiate(templateModelPart, new Vector3(0,0,0), new Quaternion(), modelOrigin.transform);
+                GameObject modelPart = Instantiate(templateModelPart, new Vector3(0,0,0), new Quaternion(), entity.transform.GetChild(1));
                 modelPart.SetActive(true);
                 modelPart.name = part.GetName();
                 if (modelPart.name == "") modelPart.name = "SingleModelObject";
                 modelPart.GetComponent<ModelDisplay>().SetOffsets(part.GetOffsets());
-                modelPart.GetComponent<ModelDisplay>().SetOffsets(modelPart.GetComponent<ModelDisplay>().GetOffsets());
+                modelPart.GetComponent<ModelDisplay>().SetPoses(part.GetPoses());
+                modelPart.GetComponent<ModelDisplay>().GetState();
                 modelPart.GetComponent<ModelDisplay>().SetModel(part.GetMinecraftModel("default"));
                 modelParts.Add(modelPart);
             }
+        }
+    }
+    private void ClearTagToggles() {
+        foreach (GameObject toggle in tagToggles) {
+            Destroy(toggle);
+        }
+        tagToggles.Clear();
+        enabledTags.Clear();
+        createdTagToggles.Clear();
+    }
+    private void CreateTagToggles(string conditions) {
+        string[] split = conditions.Replace("!","").Replace("tag=","").Split(",");
+        foreach (string con in split) {
+            if (!createdTagToggles.Contains(con) && !con.StartsWith("was_")) {
+                GameObject toggle = Instantiate(templateTagToggle, templateTagToggle.transform.position, new Quaternion(), templateTagToggle.transform.parent);
+                toggle.transform.localPosition = toggle.transform.localPosition + new Vector3(0,-25 * tagToggles.Count,0);
+                toggle.SetActive(true);
+                createdTagToggles.Add(con);
+                toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = con;
+                tagToggles.Add(toggle);
+            }
+        }
+    }
+    public void ToggleTag() {
+        enabledTags.Clear();
+        foreach (GameObject toggle in tagToggles) {
+            if (toggle.GetComponent<Toggle>().isOn) enabledTags.Add(toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text);
+        }
+        foreach (GameObject modelPart in modelParts) {
+            modelPart.GetComponent<ModelDisplay>().GetState();
         }
     }
     private void GetAnimations(string path, string animationNamespace, string animationID) {
@@ -812,5 +875,27 @@ public class Main : MonoBehaviour
         variantNamePopUpButtonText.GetComponent<TMP_Text>().text = "Cancel";
         variantNamePopUpError.SetActive(false);
         variantNamePopUp.SetActive(false);
+    }
+    public void SetSelectedModelPart(GameObject selectedModelPart) {
+        this.selectedModelPart = selectedModelPart;
+        //Show left menu
+    }
+
+    public void SetModelOffset() {
+        try {
+            entity.transform.localPosition = new(0,Convert.ToSingle(entityOffsetInput.GetComponent<TMP_InputField>().text),0);
+        }
+        catch {
+            entity.transform.localPosition = new(0,0,0);
+        }
+    }
+    public void SetModelOffsetEnd() {
+        try {
+            entity.transform.localPosition = new(0,Convert.ToSingle(entityOffsetInput.GetComponent<TMP_InputField>().text),0);
+        }
+        catch {
+            entityOffsetInput.GetComponent<TMP_InputField>().text = "0";
+            entity.transform.localPosition = new(0,0,0);
+        }
     }
 }

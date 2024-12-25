@@ -7,18 +7,18 @@ using UnityEngine.EventSystems;
 
 public class CameraBehavior : MonoBehaviour
 {
-    Vector3 focusHeight = new();
+    private Vector3 focusHeight = new();
     public GameObject entityModel;
+    public GameObject Main;
     float cameraDistance = 5;
-    int UILayer;
-    int modelRotationsLayer;
+    private bool mouseWasDown;
+    private int UILayer;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         gameObject.transform.position = gameObject.GetComponentInParent<Transform>().transform.localPosition;
         gameObject.transform.position = focusHeight + entityModel.transform.position - transform.forward * cameraDistance;
         UILayer = LayerMask.NameToLayer("UI");
-        modelRotationsLayer = LayerMask.NameToLayer("Model Rotations");
     }
 
     // Update is called once per frame
@@ -49,23 +49,30 @@ public class CameraBehavior : MonoBehaviour
         Ray ray = Camera.main.ScreenPointToRay (Input.mousePosition);
         RaycastHit hit;
         if (Input.GetKey(KeyCode.Mouse0)) {
-            if (!IsPointerOverModelRotationElement(GetEventSystemRaycastResults()) && !IsPointerOverUIElement(GetEventSystemRaycastResults())) {
-                floats.Add(Input.mousePositionDelta.x);
-                floats.Add(Input.mousePositionDelta.y);
+            if (IsPointerOverUIElement(GetEventSystemRaycastResults())) {
+                floats.Add(0);
+                floats.Add(0);
+                mouseWasDown = true;
             }
             else {
-                floats.Add(0);
-                floats.Add(0);
-                if (Physics.Raycast (ray, out hit, 100, modelRotationsLayer)) {
-                    print(hit.transform.name + " hit");
+                if (mouseWasDown == false && Physics.Raycast (ray, out hit, 100)) {
+                    Main.GetComponent<Main>().SetSelectedModelPart(hit.transform.parent.parent.parent.parent.gameObject);
+                    floats.Add(0);
+                    floats.Add(0);
+                }
+                else {
+                    floats.Add(Input.mousePositionDelta.x);
+                    floats.Add(Input.mousePositionDelta.y);
+                    mouseWasDown = true;
                 }
             }
         }
         else {
             floats.Add(0);
             floats.Add(0);
+            mouseWasDown = false;
         }
-        if (!IsPointerOverModelRotationElement(GetEventSystemRaycastResults()) && !IsPointerOverUIElement(GetEventSystemRaycastResults())) {
+        if (!IsPointerOverUIElement(GetEventSystemRaycastResults())) {
             floats.Add(Input.mouseScrollDelta.y);
         }
         else floats.Add(0);
@@ -79,19 +86,6 @@ public class CameraBehavior : MonoBehaviour
         {
             RaycastResult curRaysastResult = eventSystemRaysastResults[index];
             if (curRaysastResult.gameObject.layer == UILayer)
-                return true;
-        }
-        return false;
-    }
-
-
-    //Returns 'true' if we touched or hovering on Unity UI element.
-    private bool IsPointerOverModelRotationElement(List<RaycastResult> eventSystemRaysastResults)
-    {
-        for (int index = 0; index < eventSystemRaysastResults.Count; index++)
-        {
-            RaycastResult curRaysastResult = eventSystemRaysastResults[index];
-            if (curRaysastResult.gameObject.layer == modelRotationsLayer)
                 return true;
         }
         return false;

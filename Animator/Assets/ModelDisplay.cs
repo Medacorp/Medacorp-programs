@@ -1,64 +1,121 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Unity.VisualScripting;
 using UnityEngine;
 
 public class ModelDisplay : MonoBehaviour
 {
-    List<MinecraftModel> model;
+    private List<MinecraftModel> model;
 
     public GameObject cameraObject;
 
     public GameObject Main;
-    GameObject animationValues;
-    GameObject autoScale;
-    GameObject display;
-    GameObject templateElement;
+    private GameObject rotationPoint;
+    private GameObject animationValues;
+    private GameObject defaultOffset;
+    private GameObject display;
+    private GameObject templateElement;
     public Material transparentMaterial;
-    List<GameObject> displays;
+    private List<GameObject> displays;
 
-    List<ConditionalModelPartOffset> conditionalOffsets;
+    private List<ConditionalModelPartOffset> conditionalOffsets;
+
+    private List<ConditionalModelPartPose> conditionalPoses;
 
     private float[] offsets = {0,0,0};
 
     public void SetOffsets(List<ConditionalModelPartOffset> conditionalOffsets) {
         this.conditionalOffsets = conditionalOffsets;
-        SetOffsets(GetOffsets());
+        GetOffsets();
+    }
+
+    public void SetPoses(List<ConditionalModelPartPose> conditionalPoses) {
+        this.conditionalPoses = conditionalPoses;
+        GetPoses();
     }
     public void SetOffsets(float[] values) {
         offsets = values;
         gameObject.transform.localPosition = new(values[0],values[1],values[2]);
     }
-    public float[] GetOffsets() {
-        Main mainScript = Main.GetComponent<Main>();
-        foreach (ConditionalModelPartOffset offset in conditionalOffsets) {
-            bool success = true;
-            if (offset.tags != null && offset.tags.Count != 0){
-                foreach (KeyValuePair<string,bool> tag in offset.tags) {
-                    if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) {
-                        success = false;
-                        break;
-                    }
-                }
-            }
-            if (success) {
-                offsets = offset.GetOffsets();
-                return offsets;
-            }
-        }
+    public void SetPoses(float[] values) {
+        offsets = values;
+        float pitchrad = values[0] * Mathf.PI / 180;
+        float yawrad = values[1] * Mathf.PI / 180;
+        float rollrad = values[2] * Mathf.PI / 180;
+        float cpitch = Mathf.Cos(pitchrad * 0.5f);
+        float spitch = Mathf.Sin(pitchrad * 0.5f);
+        float cyaw = Mathf.Cos(yawrad * 0.5f);
+        float syaw = Mathf.Sin(yawrad * 0.5f);
+        float croll = Mathf.Cos(rollrad * 0.5f);
+        float sroll = Mathf.Sin(rollrad * 0.5f);
+        float w = cpitch * cyaw * croll + spitch * syaw * sroll;
+        float x = spitch * cyaw * croll - cpitch * syaw * sroll;
+        float y = cpitch * syaw * croll + spitch * cyaw * sroll;
+        float z = cpitch * cyaw * sroll - spitch * syaw * croll;
+        gameObject.transform.GetChild(0).GetChild(0).localRotation = new(x,y,z,w);;
+    }
+    public void GetState() {
+        GetOffsets();
+        GetPoses();
+    }
+    public void GetOffsets() {
+        SetOffsets(GetNewOffsets());
+    }
+    public void GetPoses() {
+        SetPoses(GetNewPoses());
+    }
+    public float[] GetNewOffsets() {
         offsets[0] = 0;
         offsets[1] = 0;
         offsets[2] = 0;
+        Main mainScript = Main.GetComponent<Main>();
+        foreach (ConditionalModelPartOffset offset in conditionalOffsets) {
+            if (offset.tags != null && offset.tags.Count != 0){
+                bool success = true;
+                foreach (KeyValuePair<string,bool> tag in offset.tags) {
+                    if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) success = false;
+                }
+                if (success) {
+                    float[] offsets2 = offset.GetOffsets();
+                    offsets[0] += offsets2[0];
+                    offsets[1] += offsets2[1];
+                    offsets[2] += offsets2[2];
+                }
+            }
+        }
         return offsets;
+    }
+    public float[] GetNewPoses() {
+        float[] poses = {0,0,0};
+        Main mainScript = Main.GetComponent<Main>();
+        foreach (ConditionalModelPartPose pose in conditionalPoses) {
+            bool success = true;
+            if (pose.tags != null && pose.tags.Count != 0){
+                foreach (KeyValuePair<string,bool> tag in pose.tags) {
+                    if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) success = false;
+                }
+            }
+            if (success) {
+                float[] poses2 = pose.GetPoses();
+                if (poses2[0] != 9999) poses[0] = poses2[0];
+                if (poses2[1] != 9999) poses[1] = poses2[1];
+                if (poses2[2] != 9999) poses[2] = poses2[2];
+            }
+        }
+        return poses;
     }
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        animationValues = gameObject.transform.GetChild(0).gameObject;
-        autoScale = animationValues.transform.GetChild(0).gameObject;
-        display = autoScale.transform.GetChild(0).gameObject;
+        rotationPoint = gameObject.transform.GetChild(0).gameObject;
+        animationValues = rotationPoint.transform.GetChild(0).gameObject;
+        defaultOffset = animationValues.transform.GetChild(0).gameObject;
+        display = defaultOffset.transform.GetChild(0).gameObject;
         templateElement = display.transform.GetChild(0).gameObject;
         displays = new();
     }
@@ -80,7 +137,7 @@ public class ModelDisplay : MonoBehaviour
         int i = 0;
         float heighestPoint = 0;
         foreach (MinecraftModel composite in model) {
-            GameObject newdisplay = Instantiate(display, new Vector3(0,0,0), new Quaternion(), autoScale.transform);
+            GameObject newdisplay = Instantiate(display, new Vector3(0,0,0), new Quaternion(), defaultOffset.transform);
             newdisplay.SetActive(true);
             newdisplay.name = "CompositeModel"+i.ToString();
             MinecraftModelDisplay value = new();
@@ -98,6 +155,7 @@ public class ModelDisplay : MonoBehaviour
             int j = 0;
             foreach (MinecraftModelElement element in composite.elements) {
                 GameObject newelement = Instantiate(templateElement, new Vector3(0,0,0), new Quaternion(), newdisplay.transform);
+                newelement.SetActive(true);
                 newelement.name = "ModelElement"+j.ToString();
                 newelement.transform.localScale = element.GetSize();
                 newelement.transform.localPosition = element.GetCenter();
@@ -112,30 +170,29 @@ public class ModelDisplay : MonoBehaviour
                     else if (face.Key == "west") modelFace = newelement.transform.GetChild(5).gameObject;
                     modelFace.transform.Rotate(modelFace.transform.InverseTransformDirection(modelFace.transform.up), face.Value.rotation, Space.Self);
                     if (modelFace != null) {
-                        modelFace.SetActive(true);
-                        Mesh mesh = modelFace.GetComponent<MeshFilter>().mesh;
+                        Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite, modelFace);
+                        MinecraftMcmetaAnimation animation = modelFace.GetComponent<TextureAnimator>().animationMcmeta;
                         List<float> uv = face.Value.uv.ToList();
-                        Vector2[] uvs = mesh.uv;
-                        Vector2 uvStart = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
-                        Vector2 uvEnd = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
-                        for (int l = 0; l < uvs.Length; l++)
-                        {
-                            uvs[l] = new Vector2(
-                                Mathf.Lerp(uvStart.x, uvEnd.x, uvs[l].x), 
-                                Mathf.Lerp(uvStart.y, uvEnd.y, uvs[l].y)
-                            );
+                        if (texture.width != texture.height) {
+                            int amountW = texture.width / animation.width;
+                            int amountH = texture.height / animation.height;
+                            uv[0] = uv[0] / amountW;
+                            uv[1] = uv[1] / amountH;
+                            uv[2] = uv[2] / amountW;
+                            uv[3] = uv[3] / amountH;
                         }
-                        mesh.uv = uvs;
-                        modelFace.GetComponent<MeshFilter>().mesh = mesh;
-                        Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite);
+                        modelFace.GetComponent<TextureAnimator>().SetUV(uv);
                         if (texture != null)
                         {
-                            if (IsAnyPixelTransparent(texture, new(uv[0] / 16, uv[3] / 16 * -1 + 1), new(uv[2] / 16, uv[1] / 16 * -1 + 1))) {
-                                modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+                            if (texture.width == animation.width && texture.height == animation.height) {
+                                if (IsAnyPixelTransparent(texture, new(uv[0] / 16, uv[3] / 16 * -1 + 1), new(uv[2] / 16, uv[1] / 16 * -1 + 1))) {
+                                    modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+                                }
                             }
+                            else modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
                             modelFace.GetComponent<MeshRenderer>().material.mainTexture = texture;
                         }
-
+                        modelFace.SetActive(true);
                     }
                 }
                 if (heighestPoint < newelement.transform.position.y + newelement.transform.localScale.y) heighestPoint = newelement.transform.position.y + newelement.transform.localScale.y;
@@ -144,21 +201,51 @@ public class ModelDisplay : MonoBehaviour
         }
         cameraObject.GetComponent<CameraBehavior>().SetModelHeight(heighestPoint);
     }
-    Texture2D LoadTexture(string key, MinecraftModel model)
+    Texture2D LoadTexture(string key, MinecraftModel model, GameObject modelFace)
     {
+        MinecraftMcmetaAnimation mcmeta = new();
         string path = null;
         if (model.textures.ContainsKey(key)) path = model.textures[key];
         // Load the texture from the file path
         if (path != null && path != "missingno") {
             Texture2D texture = new Texture2D(2, 2); // Create a new texture (replace dimensions as needed)
             texture.filterMode = FilterMode.Point;
-            byte[] fileData = System.IO.File.ReadAllBytes(path); // Read all bytes from the file
+            byte[] fileData = File.ReadAllBytes(path); // Read all bytes from the file
 
             if (fileData != null)
             {
-                // Load the image data into the texture
                 texture.LoadImage(fileData);
-                if (texture != null) return texture;
+                if (texture != null) {
+                    if (File.Exists(path + ".mcmeta")) {
+                        MinecraftMcmeta mcmeta2 = JsonConvert.DeserializeObject<MinecraftMcmeta>(File.ReadAllText(path + ".mcmeta"));
+                        mcmeta = mcmeta2.animation;
+                        mcmeta.ParseFrames();
+                        if (mcmeta.width == 0 && mcmeta.height == 0) {
+                            mcmeta.width = texture.width;
+                            if (mcmeta.width > texture.height) mcmeta.width = texture.height;
+                            mcmeta.height = texture.width;
+                            if (mcmeta.height > texture.height) mcmeta.height = texture.height;
+                        }
+                        else {
+                            if (mcmeta.width == 0) mcmeta.width = texture.width;
+                            if (mcmeta.height == 0) mcmeta.height = texture.height;
+                        }
+                        if ((float)texture.width % (float)mcmeta.width != 0) return null;
+                        if ((float)texture.height % (float)mcmeta.height != 0) return null;
+                        modelFace.GetComponent<TextureAnimator>().animationMcmeta = mcmeta;
+                        return texture;
+                    }
+                    else {
+                        if (texture.width == texture.height) {
+                            mcmeta.ParseFrames();
+                            mcmeta.width = texture.width;
+                            mcmeta.height = texture.height;
+                            modelFace.GetComponent<TextureAnimator>().animationMcmeta = mcmeta;
+                            return texture;
+                        }
+                        return null;
+                    }
+                }
             }
         }
         Debug.LogError("Couldn't find texture for key: " + key + " in the model " + model.name);

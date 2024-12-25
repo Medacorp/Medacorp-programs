@@ -17,6 +17,7 @@ public class ModelPart {
     public Dictionary<string, string[]> variants;
 
     private List<ConditionalModelPartOffset> offsetConditions = new();
+    private List<ConditionalModelPartPose> poseConditions = new();
 
     public void addConditionalOffset(string conditions, float[] offsets) {
         ConditionalModelPartOffset condition = new();
@@ -25,15 +26,49 @@ public class ModelPart {
             foreach (ConditionalModelPartOffset offset in offsetConditions) {
                 if (offset.conditions == conditions) {
                     condition = offset;
-                    return;
+                    offsetConditions.Remove(condition);
+                    break;
                 }
             }
         }
         condition.SetConditions(conditions, offsets);
         offsetConditions.Add(condition);
     }
+    public void addConditionalPose(string conditions, float[] defaultState) {
+        ConditionalModelPartPose condition = new();
+        condition.conditions = conditions;
+        if (poseConditions.Count != 0) {
+            foreach (ConditionalModelPartPose pose in poseConditions) {
+                if (pose.conditions == conditions) {
+                    condition = pose;
+                    poseConditions.Remove(condition);
+                    break;
+                }
+            }
+        }
+        condition.SetConditions(conditions, defaultState);
+        poseConditions.Add(condition);
+    }
+    public void addConditionalPose(string conditions, float defaultState, int axis) {
+        ConditionalModelPartPose condition = new();
+        condition.conditions = conditions;
+        if (poseConditions.Count != 0) {
+            foreach (ConditionalModelPartPose pose in poseConditions) {
+                if (pose.conditions == conditions) {
+                    condition = pose;
+                    poseConditions.Remove(condition);
+                    break;
+                }
+            }
+        }
+        condition.SetConditions(conditions, defaultState, axis);
+        poseConditions.Add(condition);
+    }
     public List<ConditionalModelPartOffset> GetOffsets() {
         return offsetConditions;
+    }
+    public List<ConditionalModelPartPose> GetPoses() {
+        return poseConditions;
     }
     public ModelPart(string name) {
         this.name = name;
@@ -246,9 +281,55 @@ public class ModelPart {
         }
     }
 }
+public class ConditionalModelPartPose {
+    private float defaultStateX = 9999;
+    private float defaultStateY = 9999;
+    private float defaultStateZ = 9999;
+    public string conditions;
+    public Dictionary<string,bool> tags;
+
+    public void SetConditions(string conditions, float[] defaultState) {
+        this.conditions = conditions;
+        defaultStateX = -defaultState[0];
+        defaultStateY = defaultState[1];
+        defaultStateZ = defaultState[2];
+        tags = new();
+        if (conditions != "") {
+            string[] entries = conditions.Split(",");
+            foreach (string entry in entries) {
+                string[] split = entry.Split("=");
+                if (split[1].StartsWith("!")) {
+                    if (!split[1].Remove(0,1).StartsWith("was_")) tags.Add(split[1].Remove(0,1),false);
+                }
+                else if (!split[1].StartsWith("was_")) tags.Add(split[1],true);
+            }
+        }
+    }
+
+    public void SetConditions(string conditions, float defaultState, int axis) {
+        this.conditions = conditions;
+        if (axis == 0) defaultStateX = -defaultState;
+        else if (axis == 1) defaultStateY = defaultState;
+        else defaultStateZ = defaultState;
+        tags = new();
+        if (conditions != "") {
+            string[] entries = conditions.Split(",");
+            foreach (string entry in entries) {
+                string[] split = entry.Split("=");
+                if (split[1].StartsWith("!")) {
+                    if (!split[1].Remove(0,1).StartsWith("was_")) tags.Add(split[1].Remove(0,1),false);
+                }
+                else if (!split[1].StartsWith("was_")) tags.Add(split[1],true);
+            }
+        }
+    }
+    public float[] GetPoses() {
+        float[] poses = {defaultStateX, defaultStateY, defaultStateZ};
+        return poses;
+    }
+}
 public class ConditionalModelPartOffset {
     private float[] offsets = {0,0,0};
-
     public string conditions;
 
     public void SetConditions(string conditions, float[] offsets) {
