@@ -18,6 +18,7 @@ public class ModelPart {
 
     private List<ConditionalModelPartOffset> offsetConditions = new();
     private List<ConditionalModelPartPose> poseConditions = new();
+    private List<ConditionalModelPartVariant> variantConditions = new();
 
     public void addConditionalOffset(string conditions, float[] offsets) {
         ConditionalModelPartOffset condition = new();
@@ -64,11 +65,29 @@ public class ModelPart {
         condition.SetConditions(conditions, defaultState, axis);
         poseConditions.Add(condition);
     }
+    public void addConditionalModelVariant(string conditions, string variant) {
+        ConditionalModelPartVariant condition = new();
+        condition.conditions = conditions;
+        if (variantConditions.Count != 0) {
+            foreach (ConditionalModelPartVariant pose in variantConditions) {
+                if (pose.conditions == conditions) {
+                    condition = pose;
+                    variantConditions.Remove(condition);
+                    break;
+                }
+            }
+        }
+        condition.SetConditions(conditions, variant);
+        variantConditions.Add(condition);
+    }
     public List<ConditionalModelPartOffset> GetOffsets() {
         return offsetConditions;
     }
     public List<ConditionalModelPartPose> GetPoses() {
         return poseConditions;
+    }
+    public List<ConditionalModelPartVariant> GetVariants() {
+        return variantConditions;
     }
     public ModelPart(string name) {
         this.name = name;
@@ -165,121 +184,6 @@ public class ModelPart {
         models = newmodels.ToArray();
         if (models.Length != 0) variants.Add(variant,models);
     }
-    public List<MinecraftModel> GetMinecraftModel(string variant) {
-        List<MinecraftModel> compositeModel = new();
-        string[] models = GetModel(variant);
-        if (models.Length != 0) {
-            foreach (string model in models) {
-                MinecraftAtlas atlas = null;
-                if (File.Exists(Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/minecraft/atlases/blocks.json"))) {
-                    atlas = JsonConvert.DeserializeObject<MinecraftAtlas>(File.ReadAllText(Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/minecraft/atlases/blocks.json")));
-                }
-                MinecraftModel minecraftModel = JsonConvert.DeserializeObject<MinecraftModel>(File.ReadAllText(model));
-                minecraftModel.name = model;
-                string path = Regex.Replace(model,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/|||/models/");
-                List<string> knownParents = new(){model};
-                if (minecraftModel.parent != null) GetMinecraftModelParent(minecraftModel, path, knownParents);
-
-                if (minecraftModel.textures != null) {
-                    minecraftModel.textures = updateTextureReferences(minecraftModel.textures);
-                    minecraftModel.textures = getTextureFiles(minecraftModel.textures, model, atlas);
-                }
-
-                compositeModel.Add(minecraftModel);
-            }
-        }
-        return compositeModel;
-    }
-    private Dictionary<string,string> updateTextureReferences(Dictionary<string,string> textures) {
-        Dictionary<string,string> newTextures = new();
-        foreach (KeyValuePair<string, string> texture in textures) {
-            if (texture.Value.StartsWith("#")) {
-                string key = texture.Key;
-                if (textures.TryGetValue(texture.Value.Remove(0,1), out string value)) {
-                    newTextures.Add(key,value);
-                }
-            }
-            else {
-                newTextures.Add(texture.Key,texture.Value);
-            }
-        }
-        if (newTextures.Values.Where( value => value.StartsWith("#")).ToList().Count != 0) return updateTextureReferences(newTextures);
-        return newTextures;
-        
-    }
-    private Dictionary<string,string> getTextureFiles(Dictionary<string,string> textures, string modelpath, MinecraftAtlas atlas) {
-        Dictionary<string,string> files = new();
-        foreach (KeyValuePair<string,string> texture in textures) {
-            string[] split = {"minecraft","missingno"};
-            if (texture.Value.Contains(":")) split = texture.Value.Split(":");
-            else split[1] = texture.Value;
-            string filepath = Regex.Replace(modelpath,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/" + split[0] + "/textures/" + split[1] + ".png");
-            string newtexture = "missingno";
-            if (File.Exists(filepath)) {
-                newtexture = filepath;
-            }
-            else if (atlas != null && atlas.sources.Count != 0) {
-                foreach (MinecraftAtlasSource source in atlas.sources) {
-                    if (split[1].StartsWith(source.prefix)) {
-                        filepath = Regex.Replace(modelpath,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/" + split[0] + "/textures/" + split[1].Replace(source.prefix,source.source + "/") + ".png");
-                        break;
-                    }
-                }
-                if (File.Exists(filepath)) {
-                    newtexture = filepath;
-                }
-            }
-            files.Add(texture.Key,newtexture);
-            
-        }
-        return files;
-    }
-    private MinecraftModel GetMinecraftModelParent(MinecraftModel model, string path, List<string> knownParents) {
-        List<string> newKnownParents = knownParents;
-        string[] split = model.parent.Split(":");
-        string filepath = path.Replace("|||",split[0])+split[1]+".json";
-        MinecraftModel parentModel = null;
-        MinecraftModel newModel = model;
-        if(!knownParents.Contains(filepath)) {
-            newKnownParents.Add(filepath);
-            if (File.Exists(filepath)) {
-                parentModel = JsonConvert.DeserializeObject<MinecraftModel>(File.ReadAllText(filepath));
-            }
-            newModel.parent = null;
-            if (parentModel != null) {
-                if (parentModel.parent != null) newModel.parent = parentModel.parent;
-                if (parentModel.textures != null) {
-                    if (newModel.textures == null) newModel.textures = new();
-                    foreach (KeyValuePair<string, string> texture in parentModel.textures) {
-                        try {
-                            newModel.textures.Add(texture.Key, texture.Value);
-                        }
-                        catch {
-                            //Provided by child
-                        }
-                    }
-                }
-                if (parentModel.elements != null && newModel.elements == null) newModel.elements = parentModel.elements;
-                if (parentModel.display != null) {
-                    if (newModel.display == null) newModel.display = new();
-                    foreach (KeyValuePair<string, MinecraftModelDisplay> displaysetting in parentModel.display) {
-                        try {
-                            newModel.display.Add(displaysetting.Key, displaysetting.Value);
-                        }
-                        catch {
-                            //Provided by child
-                        }
-                    }
-                }
-            }
-            if (newModel.parent != null) return GetMinecraftModelParent(newModel, path, newKnownParents);
-            return newModel;
-        }
-        else {
-            return newModel;
-            //Bad model, infinite parent loop
-        }
-    }
 }
 public class ConditionalModelPartPose {
     private float defaultStateX = 9999;
@@ -354,6 +258,35 @@ public class ConditionalModelPartOffset {
     }
     public float[] GetOffsets() {
         return offsets;
+    }
+
+}
+public class ConditionalModelPartVariant {
+    private string variant = "default";
+    public string conditions;
+
+    public void SetConditions(string conditions, string variant) {
+        this.conditions = conditions;
+        this.variant = variant;
+        tags = new();
+        if (conditions != "") {
+            string[] entries = conditions.Split(",");
+            foreach (string entry in entries) {
+                string[] split = entry.Split("=");
+                if (split[1].StartsWith("!")) {
+                    tags.Add(split[1].Remove(0,1),false);
+                }
+                else tags.Add(split[1],true);
+            }
+        }
+    }
+
+    public Dictionary<string,bool> tags;
+    public void SetModelVariant(string variant) {
+        this.variant = variant;
+    }
+    public string GetModelVariant() {
+        return variant;
     }
 
 }

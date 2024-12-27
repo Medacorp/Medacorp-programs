@@ -796,6 +796,7 @@ MonoBehaviour:
   editModelsDeleteButton: {fileID: 1739971017}
   editModelsCompositeSelector: {fileID: 1729048357}
   editModelsSelectedText: {fileID: 1464022267}
+  parts: []
   variantNamePopUp: {fileID: 310096174}
   variantNamePopUpInput: {fileID: 327336722}
   variantNamePopUpError: {fileID: 1422015059}
@@ -1332,7 +1333,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1950527643}
-  m_Father: {fileID: 691388353}
+  m_Father: {fileID: 1158880967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &251835411
 GameObject:
@@ -1912,14 +1913,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 318672519}
-  - component: {fileID: 318672520}
   m_Layer: 5
   m_Name: EditModelsTab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &318672519
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1939,22 +1939,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -350, y: -25}
-  m_SizeDelta: {x: 200, y: -50}
+  m_AnchoredPosition: {x: -125, y: -25}
+  m_SizeDelta: {x: 250, y: -50}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &318672520
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 318672518}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fd4eddca15b5efa459c14eb0240bc2f4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hideAtStart: 1
 --- !u!1 &327336722
 GameObject:
   m_ObjectHideFlags: 0
@@ -4173,9 +4160,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 318672520}
-        m_TargetAssemblyTypeName: ToggleableSidebar, Assembly-CSharp
-        m_MethodName: ToggleFullHide
+      - m_Target: {fileID: 99003840}
+        m_TargetAssemblyTypeName: Main, Assembly-CSharp
+        m_MethodName: PressEditModelsButton
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4553,7 +4540,7 @@ Transform:
   m_LocalScale: {x: 0.625, y: 0.625, z: 0.625}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 228985674}
+  - {fileID: 1158880967}
   m_Father: {fileID: 1757208555}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &708276273
@@ -4743,7 +4730,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 0.9019608}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -7593,6 +7580,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1157456299}
   m_CullTransparentMesh: 1
+--- !u!1 &1158880966
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1158880967}
+  m_Layer: 3
+  m_Name: TemplateVariant
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1158880967
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1158880966}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 228985674}
+  m_Father: {fileID: 691388353}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1168381489
 GameObject:
   m_ObjectHideFlags: 0
@@ -7833,7 +7852,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0, g: 0.46798563, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -14876,7 +14895,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0, g: 0.7212255, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

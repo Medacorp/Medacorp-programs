@@ -8,6 +8,8 @@ using UnityEngine.EventSystems;
 public class CameraBehavior : MonoBehaviour
 {
     private Vector3 focusHeight = new();
+    private float modelTop = 0;
+    private float modelBottom = 0;
     public GameObject entityModel;
     public GameObject Main;
     float cameraDistance = 5;
@@ -101,8 +103,18 @@ public class CameraBehavior : MonoBehaviour
         EventSystem.current.RaycastAll(eventData, raysastResults);
         return raysastResults;
     }
-    public void SetModelHeight(float height) {
-        if (height / 2 > focusHeight.y) focusHeight.y = height / 2; 
-        if (height == 0) focusHeight.y = 0;
+    public void SetModelTop(float height) {
+        if (height > modelTop) modelTop = height; 
+        if (height == 0) modelTop = 0;
+        UpdateFocusHeight();
+    }
+    public void SetModelBottom(float height) {
+        if (height < modelBottom) modelBottom = height; 
+        if (height == 0) modelBottom = 0;
+        UpdateFocusHeight();
+    }
+    private void UpdateFocusHeight() {
+        focusHeight.y = (modelBottom + modelTop) / 2;
+        gameObject.transform.position = focusHeight + entityModel.transform.position - transform.forward * cameraDistance;
     }
 }

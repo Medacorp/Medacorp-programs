@@ -32,12 +32,9 @@ Implemented:
 * Rendering selected models with offsets defined by animation group
 
 To implement:
-* Animated texture support
-* Add checkboxes for tag toggling, using different offsets (eg `flipped_gravity`)
 * Add checkbox for toggling between armor stand and item display
 * - toggle built-in offset
 * - toggle between just rotating, and all kinds of changes to the model transform
-* Add option to change entity Y position compared to the block
 * Allow selecting model part to rotate them around their display center
 * Read animation files
 * - Armor Stand variant (Pose)

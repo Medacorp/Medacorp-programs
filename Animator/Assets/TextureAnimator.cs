@@ -15,6 +15,7 @@ public class TextureAnimator : MonoBehaviour
     private float frameTime = 0;
     private int currentFrame = -1;
     private Vector2[] originalUVs;
+    private static bool animationsMayRun = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -29,10 +30,22 @@ public class TextureAnimator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (frames != null && frames.Count > 1 ) {
-            frameTime = frameTime - Time.deltaTime * 20;
-            if (frameTime <= 0) GetNextFrame();
+        if (animationsMayRun) {
+            if (frames != null && frames.Count > 1 ) {
+                frameTime = frameTime - Time.deltaTime * 20;
+                if (frameTime <= 0) GetNextFrame();
+            }
         }
+        else {
+            currentFrame = -1;
+            frameTime = 0;
+        }
+    }
+    public static void ToggleAnimations(bool value) {
+        animationsMayRun = value;
+    }
+    public static bool EnabledAnimations() {
+        return animationsMayRun;
     }
     public void SetUV(List<float> newUVs) {
         uv = new(){
