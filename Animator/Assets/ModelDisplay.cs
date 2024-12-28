@@ -8,8 +8,12 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using TMPro;
 using Unity.VisualScripting;
+using UnityEditor;
+using UnityEditor.VersionControl;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class ModelDisplay : MonoBehaviour
 {
@@ -22,8 +26,8 @@ public class ModelDisplay : MonoBehaviour
     private GameObject defaultOffset;
     private GameObject templateVariant;
     private GameObject display;
-    private GameObject templateElement;
     public Material transparentMaterial;
+    public Texture2D missingNo;
     private List<GameObject> variants;
 
     private List<ConditionalModelPartOffset> conditionalOffsets;
@@ -161,7 +165,6 @@ public class ModelDisplay : MonoBehaviour
         defaultOffset = animationValues.transform.GetChild(0).gameObject;
         templateVariant = defaultOffset.transform.GetChild(0).gameObject;
         display = templateVariant.transform.GetChild(0).gameObject;
-        templateElement = display.transform.GetChild(0).gameObject;
         if (variants == null) variants = new();
     }
 
@@ -173,7 +176,7 @@ public class ModelDisplay : MonoBehaviour
             generatingModel = false;
             cameraObject.GetComponent<CameraBehavior>().SetModelTop(heighestPoint);
             cameraObject.GetComponent<CameraBehavior>().SetModelBottom(lowestPoint);
-            print(gameObject.name + " is done");
+            print("model is done");
         }
     }
     public void SetModel(Dictionary<string, string[]> variants, string[] defaultVariant, string visibleVariant) {
@@ -188,13 +191,9 @@ public class ModelDisplay : MonoBehaviour
         cameraObject.GetComponent<CameraBehavior>().SetModelBottom(0);
         TextureAnimator.ToggleAnimations(false);
         GenerateModels(defaultVariant, "default", visibleVariant == "default");
-        //Thread threadedGenerateDefault = new Thread(() => GenerateModels(defaultVariant, "default", visibleVariant == "default"));
-        //threadedGenerateDefault.Start();
         generatingModelThreads += 1;
         foreach (KeyValuePair<string,string[]> var in variants) {
             GenerateModels(var.Value, var.Key, visibleVariant == var.Key);
-            //Thread threadedGenerateVariant = new Thread(() => GenerateModels(var.Value, var.Key, visibleVariant == var.Key));
-            //threadedGenerateVariant.Start();
             generatingModelThreads += 1;
         }
         generatingModel = true;
@@ -315,132 +314,455 @@ public class ModelDisplay : MonoBehaviour
     }
     private void GenerateModels(string[] model, string variant, bool visible) {
         GameObject newVariant = Instantiate(templateVariant, new Vector3(0,0,0), new Quaternion(), defaultOffset.transform);
+        newVariant.transform.localPosition = new(0,0,0);
         newVariant.SetActive(visible);
         newVariant.name = variant;
         variants.Add(newVariant);
-        StartCoroutine(GenerateModel(GetMinecraftModel(model), newVariant));
+        GenerateMesh(GetMinecraftModel(model), newVariant);
     }
-    private IEnumerator GenerateModel(List<MinecraftModel> model, GameObject newVariant) {
+    private void GenerateMesh(List<MinecraftModel> model, GameObject newVariant) {
         int i = 0;
-        foreach (MinecraftModel composite in model) {
-            if (composite.elements.Count != 0) {
-                GameObject newdisplay = Instantiate(display, new Vector3(0,0,0), new Quaternion(), newVariant.transform);
-                newdisplay.SetActive(true);
-                newdisplay.name = "CompositeModel"+i.ToString();
-                MinecraftModelDisplay value = new();
-                try {
-                    composite.display.TryGetValue("head", out value);
-                    newdisplay.transform.localPosition = value.GetTranslation();
-                    newdisplay.transform.localScale = value.GetScale();
-                    newdisplay.transform.localRotation = value.GetRotation();
+        foreach (MinecraftModel minecraftModel in model) 
+        {
+            GameObject newdisplay = Instantiate(display, new Vector3(0,0,0), new Quaternion(), newVariant.transform);
+            newdisplay.name = "CompositeModel"+i.ToString();
+            Texture2D textureAtlas = new(2,2);
+            textureAtlas.filterMode = FilterMode.Point;
+            List<Texture2D> textures = new();
+            List<MinecraftMcmetaAnimation> texturesAnimations = new();
+            List<string> loadedTextures = new();
+            Dictionary<string,int> textureAtlasPositions = new();
+            foreach (KeyValuePair<string,string> textureReference in minecraftModel.textures) {
+                Texture2D newtexture = LoadTexture(textureReference.Value);
+                MinecraftMcmetaAnimation textureMcmeta = LoadTextureMcmeta(textureReference.Value, newtexture);
+                string textureName = textureReference.Value;
+                if (!(newtexture != null && textureMcmeta != null)) {
+                    newtexture = missingNo;
+                    textureMcmeta = new(newtexture.width, newtexture.height);
+                    textureName = "missingno";
                 }
-                catch {
-                    //Doesn't exist
+                textureMcmeta.SetTexture(newtexture);
+                newtexture = textureMcmeta.GetFrame(0);
+                if (loadedTextures.Contains(textureName)) {
+                    textureAtlasPositions.Add(textureReference.Key,loadedTextures.FindIndex(valueIndex => valueIndex == textureName));
                 }
-                i++;
-                int j = 0;
-                foreach (MinecraftModelElement element in composite.elements) {
-                    if (element.faces.Count != 0) {
-                        GameObject newelement = Instantiate(templateElement, new Vector3(0,0,0), new Quaternion(), newdisplay.transform);
-                        newelement.SetActive(true);
-                        newelement.name = "ModelElement"+j.ToString();
-                        newelement.transform.localScale = element.GetSize();
-                        newelement.transform.localPosition = element.GetCenter();
-                        newelement.transform.RotateAround(newdisplay.transform.TransformPoint(element.GetRotationPoint()), newelement.transform.InverseTransformDirection(element.GetRotationAxis()), -element.GetRotationAngle());
-                        foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
-                            GameObject modelFace = null;
-                            if (face.Key == "up") modelFace = newelement.transform.GetChild(0).gameObject;
-                            else if (face.Key == "down") modelFace = newelement.transform.GetChild(1).gameObject;
-                            else if (face.Key == "north") modelFace = newelement.transform.GetChild(2).gameObject;
-                            else if (face.Key == "east") modelFace = newelement.transform.GetChild(3).gameObject;
-                            else if (face.Key == "south") modelFace = newelement.transform.GetChild(4).gameObject;
-                            else if (face.Key == "west") modelFace = newelement.transform.GetChild(5).gameObject;
-                            if (modelFace != null) {
-                                modelFace.transform.Rotate(modelFace.transform.InverseTransformDirection(modelFace.transform.up), face.Value.rotation, Space.Self);
-                                Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite, modelFace);
-                                MinecraftMcmetaAnimation animation = modelFace.GetComponent<TextureAnimator>().animationMcmeta;
-                                List<float> uv = face.Value.uv.ToList();
-                                if (texture.width != texture.height) {
-                                    int amountW = texture.width / animation.width;
-                                    int amountH = texture.height / animation.height;
-                                    uv[0] = uv[0] / amountW;
-                                    uv[1] = uv[1] / amountH;
-                                    uv[2] = uv[2] / amountW;
-                                    uv[3] = uv[3] / amountH;
-                                }
-                                modelFace.GetComponent<TextureAnimator>().SetUV(uv);
-                                if (texture != null)
-                                {
-                                    if (texture.width == animation.width && texture.height == animation.height) {
-                                        if (IsAnyPixelTransparent(texture, new(uv[0] / 16, uv[3] / 16 * -1 + 1), new(uv[2] / 16, uv[1] / 16 * -1 + 1))) {
-                                            modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
-                                        }
-                                    }
-                                    else modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
-                                    modelFace.GetComponent<MeshRenderer>().material.mainTexture = texture;
-                                }
-                                modelFace.SetActive(true);
-                            }
-                        }
-                        if (heighestPoint < newelement.transform.position.y + newelement.transform.localScale.y) heighestPoint = newelement.transform.position.y + newelement.transform.localScale.y;
-                        if (lowestPoint > newelement.transform.position.y - newelement.transform.localScale.y) lowestPoint = newelement.transform.position.y - newelement.transform.localScale.y;
-                    }
-                    j++;
-                    yield return new WaitForEndOfFrame();
+                else {
+                    textures.Add(newtexture);
+                    texturesAnimations.Add(textureMcmeta);
+                    textureAtlasPositions.Add(textureReference.Key,loadedTextures.Count - 1);
+                    loadedTextures.Add(textureName);
                 }
             }
+            Rect[] rectangles = textureAtlas.PackTextures(textures.ToArray(), 0);
+            Dictionary<string,float> uvScaleX = new();
+            Dictionary<string,float> uvScaleY = new();
+            Dictionary<string,float> uvOffsetX = new();
+            Dictionary<string,float> uvOffsetY = new();
+            foreach (KeyValuePair<string,string> textureReference in minecraftModel.textures) {
+                int valueIndex = loadedTextures.FindIndex(valueIndex => valueIndex == textureReference.Value);
+                uvScaleX.Add(textureReference.Key, rectangles[valueIndex].width);
+                uvScaleY.Add(textureReference.Key, rectangles[valueIndex].height);
+                uvOffsetX.Add(textureReference.Key, rectangles[valueIndex].position.x);
+                uvOffsetY.Add(textureReference.Key, rectangles[valueIndex].position.y);
+            }
+            newdisplay.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
+            newdisplay.GetComponent<TextureAnimator>().SetValues(texturesAnimations, textureAtlas, rectangles);
+            i++;
+            Mesh mesh = new();
+            mesh.name = gameObject.name + ":" + newVariant.name + ":" + newdisplay.name;
+            List<Vector3> vertices = new();
+            List<Vector2> uv = new();
+            List<int> triangles = new();
+            foreach (MinecraftModelElement element in minecraftModel.elements) {
+                float[] from = {-(element.from[0] - 8) / 16, (element.from[1] - 8) / 16, (element.from[2] - 8) / 16};
+                float[] to = {-(element.to[0] - 8) / 16, (element.to[1] - 8) / 16, (element.to[2] - 8) / 16};
+                List<Vector3> points = new(){
+                    new(from[0],from[1],from[2]),
+                    new(from[0],from[1],to[2]),
+                    new(from[0],to[1],from[2]),
+                    new(from[0],to[1],to[2]),
+                    new(to[0],from[1],from[2]),
+                    new(to[0],from[1],to[2]),
+                    new(to[0],to[1],from[2]),
+                    new(to[0],to[1],to[2])
+                };
+                if (element.GetRotationAngle() != 0) {
+                    List<Vector3> newpoints = new();
+                    float[] angles = element.GetRotationEulerAngle();
+                    Quaternion rotation = Quaternion.Euler(angles[0], -angles[1], -angles[2]);
+                    Vector3 rotationPoint = element.GetRotationPoint();
+                    foreach (Vector3 point in points) {
+                        newpoints.Add(rotation * (point - rotationPoint) + rotationPoint);
+                    }
+                    points = newpoints;
+                }
+                foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
+                    float[] uvs = {face.Value.uv[0] / 16, face.Value.uv[1] / 16, face.Value.uv[2] / 16, face.Value.uv[3] / 16};
+                    float xScale = 1;
+                    float yScale = 1;
+                    float xOffset = 0;
+                    float yOffset = 0;
+                    string textureReference = face.Value.texture.Replace("#","");
+                    if (!minecraftModel.textures.ContainsKey(textureReference)) {
+                        textureReference = "missingno";
+                    }
+                    uvScaleX.TryGetValue(textureReference, out xScale);
+                    uvScaleY.TryGetValue(textureReference, out yScale);
+                    uvOffsetX.TryGetValue(textureReference, out xOffset);
+                    uvOffsetY.TryGetValue(textureReference, out yOffset);
+                    uvs[0] = uvs[0] * xScale + xOffset;
+                    uvs[1] = (uvs[1] * yScale + yOffset) * -1 + 1;
+                    uvs[2] = uvs[2] * xScale + xOffset;
+                    uvs[3] = (uvs[3] * yScale + yOffset) * -1 + 1;
+                    int index = vertices.Count;
+                    bool validKey = false;
+                    if (face.Key == "east") {
+                        vertices.Add(points[5]);
+                        vertices.Add(points[7]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[4]);
+                        validKey = true;
+                    }
+                    else if (face.Key == "down") {
+                        vertices.Add(points[0]);
+                        vertices.Add(points[1]);
+                        vertices.Add(points[5]);
+                        vertices.Add(points[4]);
+                        validKey = true;
+                    }
+                    else if (face.Key == "north") {
+                        vertices.Add(points[4]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[0]);
+                        validKey = true;
+                    }
+                    else if (face.Key == "south") {
+                        vertices.Add(points[1]);
+                        vertices.Add(points[3]);
+                        vertices.Add(points[7]);
+                        vertices.Add(points[5]);
+                        validKey = true;
+                    }
+                    else if (face.Key == "up") {
+                        vertices.Add(points[3]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[7]);
+                        validKey = true;
+                    }
+                    else if (face.Key == "west") {
+                        vertices.Add(points[0]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[3]);
+                        vertices.Add(points[1]);
+                        validKey = true;
+                    }
+                    if (validKey) {
+                        triangles.Add(index);
+                        triangles.Add(index+1);
+                        triangles.Add(index+2);
+                        triangles.Add(index);
+                        triangles.Add(index+2);
+                        triangles.Add(index+3);
+                        uv.Add(new(uvs[0], uvs[3]));
+                        uv.Add(new(uvs[0], uvs[1]));
+                        uv.Add(new(uvs[2], uvs[1]));
+                        uv.Add(new(uvs[2], uvs[3]));
+                        if (face.Value.rotation == 90 || face.Value.rotation == 180 || face.Value.rotation == 270) {
+                            uv.Add(uv[index]);
+                            uv.RemoveAt(index);
+                            if (face.Value.rotation == 180 || face.Value.rotation == 270) {
+                                uv.Add(uv[index]);
+                                uv.RemoveAt(index);
+                                if (face.Value.rotation == 270) {
+                                    uv.Add(uv[index]);
+                                    uv.RemoveAt(index);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            mesh.vertices = vertices.ToArray();
+            mesh.uv = uv.ToArray();
+            mesh.triangles = triangles.ToArray();
+            newdisplay.transform.SetParent(null);
+            Vector3 trueScale = newdisplay.transform.localScale;
+            Vector3 truePosition = newdisplay.transform.localPosition;
+            Quaternion trueRotation = newdisplay.transform.localRotation;
+            newdisplay.transform.localScale = new (1,1,1);
+            newdisplay.transform.localPosition = new (0,0,0);
+            newdisplay.transform.localRotation = Quaternion.Euler(0,0,0);
+            newdisplay.GetComponent<MeshFilter>().sharedMesh = mesh;
+            newdisplay.GetComponent<MeshCollider>().sharedMesh = mesh;
+            newdisplay.transform.localScale = trueScale;
+            newdisplay.transform.localPosition = truePosition;
+            newdisplay.transform.localRotation = trueRotation;
+            newdisplay.transform.SetParent(newVariant.transform);
+            MinecraftModelDisplay value = new();
+            try {
+                minecraftModel.display.TryGetValue("head", out value);
+                newdisplay.transform.localPosition = value.GetTranslation();
+                newdisplay.transform.localScale = value.GetScale();
+                newdisplay.transform.localRotation = value.GetRotation();
+            }
+            catch {
+                //Doesn't exist, use defaults
+            }
+            Bounds bounds = mesh.bounds;
+            newdisplay.SetActive(true);
+            if (heighestPoint < bounds.max.y) heighestPoint = bounds.max.y;
+            if (lowestPoint > bounds.min.y) lowestPoint = bounds.min.y;
         }
         generatingModelThreads -= 1;
     }
-    private Texture2D LoadTexture(string key, MinecraftModel model, GameObject modelFace)
+    //private IEnumerator GenerateModel(List<MinecraftModel> model, GameObject newVariant) {
+    //    int i = 0;
+    //    foreach (MinecraftModel composite in model) {
+    //        if (composite.elements.Count != 0) {
+    //            GameObject newdisplay = Instantiate(display, new Vector3(0,0,0), new Quaternion(), newVariant.transform);
+    //            newdisplay.SetActive(true);
+    //            newdisplay.name = "CompositeModel"+i.ToString();
+    //            i++;
+    //            int j = 0;
+    //            string textureComposite = null;
+    //            bool canMergeComposite = true;
+    //            bool transparentComposite = false;
+    //            foreach (MinecraftModelElement element in composite.elements) {
+    //                if (element.faces.Count != 0) {
+    //                    GameObject newelement = Instantiate(templateElement, new Vector3(0,0,0), new Quaternion(), newdisplay.transform);
+    //                    newelement.SetActive(true);
+    //                    newelement.name = "ModelElement"+j.ToString();
+    //                    newelement.transform.localScale = element.GetSize();
+    //                    newelement.transform.localPosition = element.GetCenter();
+    //                    string textureElement = null;
+    //                    bool canMergeElement = true;
+    //                    bool transparentElement = false;
+    //                    foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
+    //                        GameObject modelFace = null;
+    //                        if (face.Key == "up") modelFace = newelement.transform.GetChild(0).gameObject;
+    //                        else if (face.Key == "down") modelFace = newelement.transform.GetChild(1).gameObject;
+    //                        else if (face.Key == "north") modelFace = newelement.transform.GetChild(2).gameObject;
+    //                        else if (face.Key == "east") modelFace = newelement.transform.GetChild(3).gameObject;
+    //                        else if (face.Key == "south") modelFace = newelement.transform.GetChild(4).gameObject;
+    //                        else if (face.Key == "west") modelFace = newelement.transform.GetChild(5).gameObject;
+    //                        if (modelFace != null) {
+    //                            modelFace.transform.Rotate(modelFace.transform.InverseTransformDirection(modelFace.transform.up), face.Value.rotation, Space.Self);
+    //                            Texture2D texture = LoadTexture(face.Value.texture.Replace("#",""),composite, modelFace);
+    //                            if (textureElement == null) textureElement = GetTextureName(face.Value.texture.Replace("#",""),composite);
+    //                            if (textureElement != GetTextureName(face.Value.texture.Replace("#",""),composite)) canMergeElement = false;
+    //                            MinecraftMcmetaAnimation animation = modelFace.GetComponent<TextureAnimator>().animationMcmeta;
+    //                            List<float> uv = face.Value.uv.ToList();
+    //                            if (texture.width != texture.height) {
+    //                                int amountW = texture.width / animation.width;
+    //                                int amountH = texture.height / animation.height;
+    //                                uv[0] = uv[0] / amountW;
+    //                                uv[1] = uv[1] / amountH;
+    //                                uv[2] = uv[2] / amountW;
+    //                                uv[3] = uv[3] / amountH;
+    //                            }
+    //                            modelFace.GetComponent<TextureAnimator>().SetUV(uv);
+    //                            Mesh mesh = modelFace.GetComponent<MeshFilter>().mesh;
+    //                            Vector2[] uvs = mesh.uv;
+    //                            modelFace.GetComponent<TextureAnimator>().SetOriginalUV(uvs);
+    //                            Vector2 uvStart = new Vector2(uv[0] / 16, uv[1] / 16 * -1 + 1);
+    //                            Vector2 uvEnd = new Vector2(uv[2] / 16, uv[3] / 16 * -1 + 1);
+    //                            for (int l = 0; l < uvs.Length; l++)
+    //                            {
+    //                                
+    //                                uvs[l] = new Vector2(
+    //                                    Mathf.Lerp(uvStart.x, uvEnd.x, uvs[l].x), 
+    //                                    Mathf.Lerp(uvStart.y, uvEnd.y, uvs[l].y)
+    //                                );
+    //                            }
+    //                            mesh.uv = uvs;
+    //                            mesh.name = modelFace.transform.position.z.ToString() + "_" + (-modelFace.transform.position.x).ToString() + "_" + modelFace.transform.position.y.ToString();
+    //                            modelFace.GetComponent<MeshFilter>().mesh = mesh;
+    //                            if (texture != null)
+    //                            {
+    //                                if (texture.width == animation.width && texture.height == animation.height) {
+    //                                    if (IsAnyPixelTransparent(texture, new(uv[0] / 16, uv[3] / 16 * -1 + 1), new(uv[2] / 16, uv[1] / 16 * -1 + 1))) {
+    //                                        modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+    //                                        transparentElement = true;
+    //                                    }
+    //                                }
+    //                                else {
+    //                                    modelFace.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+    //                                    canMergeElement = false;
+    //                                }
+    //                                modelFace.GetComponent<MeshRenderer>().material.mainTexture = texture;
+    //                            }
+    //                            modelFace.SetActive(true);
+    //                        }
+    //                    }
+    //                    if (!newelement.transform.GetChild(5).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(5).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (!newelement.transform.GetChild(4).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(4).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (!newelement.transform.GetChild(3).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(3).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (!newelement.transform.GetChild(2).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(2).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (!newelement.transform.GetChild(1).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(1).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (!newelement.transform.GetChild(0).gameObject.activeSelf) {
+    //                        GameObject childToDelete = newelement.transform.GetChild(0).gameObject;
+    //                        childToDelete.transform.SetParent(null);
+    //                        Destroy(childToDelete);
+    //                    }
+    //                    if (canMergeElement) {
+    //                        newelement.transform.SetParent(null);
+    //                        Vector3 trueScale = newelement.transform.localScale;
+    //                        Vector3 truePosition = newelement.transform.localPosition;
+    //                        newelement.transform.localScale = new (1,1,1);
+    //                        newelement.transform.localPosition = new (0,0,0);
+    //                        MeshFilter[] meshFilters = newelement.GetComponentsInChildren<MeshFilter>();
+    //                        CombineInstance[] combine = new CombineInstance[meshFilters.Length];
+//
+    //                        for (int k = 0; k < meshFilters.Length; k++)
+    //                        {
+    //                            if (meshFilters[k].transform == newelement.transform || meshFilters[k].sharedMesh == null) {    
+    //                                continue;      
+    //                            }
+    //                            combine[k - 1].subMeshIndex = 0;     
+    //                            combine[k - 1].mesh = meshFilters[k].sharedMesh;       
+    //                            combine[k - 1].transform = meshFilters[k].transform.localToWorldMatrix;
+    //                        }
+//
+    //                        Mesh mesh = new Mesh();
+    //                        mesh.CombineMeshes(combine);
+    //                        mesh.name = truePosition.z.ToString() + "_" + (-truePosition.x).ToString() + "_" + truePosition.y.ToString();
+    //                        mesh.RecalculateTangents();
+    //                        newelement.GetComponent<MeshFilter>().sharedMesh = mesh;
+    //                        newelement.GetComponent<MeshCollider>().sharedMesh = mesh;
+    //                        if (transparentElement) newelement.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+    //                        newelement.GetComponent<MeshRenderer>().material.mainTexture = newelement.transform.GetChild(0).gameObject.GetComponent<MeshRenderer>().material.mainTexture;
+    //                        for (int l = newelement.transform.childCount - 1; l >= 0; l-=1) {
+    //                            Destroy(newelement.transform.GetChild(l).gameObject);
+    //                        }
+    //                        newelement.transform.localScale = trueScale;
+    //                        newelement.transform.localPosition = truePosition;
+    //                        newelement.transform.SetParent(newdisplay.transform);
+    //                        if (transparentElement) transparentComposite = true;
+    //                        if (textureComposite == null) textureComposite = textureElement;
+    //                        if (textureComposite != textureElement) canMergeComposite = false;
+    //                    }
+    //                    else canMergeComposite = false;
+    //                    newelement.transform.RotateAround(newdisplay.transform.TransformPoint(element.GetRotationPoint()), newelement.transform.InverseTransformDirection(element.GetRotationAxis()), -element.GetRotationAngle());
+    //                    if (heighestPoint < newelement.transform.position.y + newelement.transform.localScale.y) heighestPoint = newelement.transform.position.y + newelement.transform.localScale.y;
+    //                    if (lowestPoint > newelement.transform.position.y - newelement.transform.localScale.y) lowestPoint = newelement.transform.position.y - newelement.transform.localScale.y;
+    //                }
+    //                j++;
+    //                yield return new WaitForEndOfFrame();
+    //            }
+    //            GameObject templateToDelete = newdisplay.transform.GetChild(0).gameObject;
+    //            templateToDelete.transform.SetParent(null);
+    //            Destroy(templateToDelete);
+    //            if (canMergeComposite) {
+    //                newdisplay.transform.SetParent(null);
+    //                Vector3 trueScale = newdisplay.transform.localScale;
+    //                Vector3 truePosition = newdisplay.transform.localPosition;
+    //                newdisplay.transform.localScale = new (1,1,1);
+    //                newdisplay.transform.localPosition = new (0,0,0);
+    //                MeshFilter[] meshFilters = newdisplay.GetComponentsInChildren<MeshFilter>();
+    //                CombineInstance[] combine = new CombineInstance[meshFilters.Length];
+//
+    //                for (int k = 0; k < meshFilters.Length; k++)
+    //                {
+    //                    if (meshFilters[k].transform == newdisplay.transform || meshFilters[k].sharedMesh == null) {    
+    //                        continue;      
+    //                    }
+    //                    combine[k].subMeshIndex = 0;
+    //                    combine[k].mesh = meshFilters[k].sharedMesh;
+    //                    combine[k].transform = meshFilters[k].transform.localToWorldMatrix;
+    //                }
+    //                
+    //                Mesh mesh = new Mesh();
+    //                mesh.CombineMeshes(combine);
+    //                mesh.RecalculateTangents();
+    //                newdisplay.GetComponent<MeshFilter>().sharedMesh = mesh;
+    //                newdisplay.GetComponent<MeshCollider>().sharedMesh = mesh;
+    //                if (transparentComposite) newdisplay.GetComponent<MeshRenderer>().SetMaterials(new(){transparentMaterial});
+    //                newdisplay.GetComponent<MeshRenderer>().material.mainTexture = newdisplay.transform.GetChild(0).gameObject.GetComponent<MeshRenderer>().material.mainTexture;
+    //                for (int l = newdisplay.transform.childCount - 1; l >= 0; l-=1) {
+    //                    Destroy(newdisplay.transform.GetChild(l).gameObject);
+    //                }
+    //                newdisplay.transform.localScale = trueScale;
+    //                newdisplay.transform.localPosition = truePosition;
+    //                newdisplay.transform.SetParent(newVariant.transform);
+    //            }
+    //            MinecraftModelDisplay value = new();
+    //            try {
+    //                composite.display.TryGetValue("head", out value);
+    //                newdisplay.transform.localPosition = value.GetTranslation();
+    //                newdisplay.transform.localScale = value.GetScale();
+    //                newdisplay.transform.localRotation = value.GetRotation();
+    //            }
+    //            catch {
+    //                //Doesn't exist
+    //            }
+    //        }
+    //    }
+    //    generatingModelThreads -= 1;
+    //}
+    private Texture2D LoadTexture(string value)
     {
-        MinecraftMcmetaAnimation mcmeta = new();
-        string path = null;
-        if (model.textures.ContainsKey(key)) path = model.textures[key];
         // Load the texture from the file path
-        if (path != null && path != "missingno") {
+        if (value != null && value != "missingno") {
             Texture2D texture = new Texture2D(2, 2); // Create a new texture (replace dimensions as needed)
             texture.filterMode = FilterMode.Point;
-            byte[] fileData = File.ReadAllBytes(path); // Read all bytes from the file
+            byte[] fileData = File.ReadAllBytes(value); // Read all bytes from the file
 
             if (fileData != null)
             {
                 texture.LoadImage(fileData);
-                if (texture != null) {
-                    if (File.Exists(path + ".mcmeta")) {
-                        MinecraftMcmeta mcmeta2 = JsonConvert.DeserializeObject<MinecraftMcmeta>(File.ReadAllText(path + ".mcmeta"));
-                        mcmeta = mcmeta2.animation;
-                        mcmeta.ParseFrames();
-                        if (mcmeta.width == 0 && mcmeta.height == 0) {
-                            mcmeta.width = texture.width;
-                            if (mcmeta.width > texture.height) mcmeta.width = texture.height;
-                            mcmeta.height = texture.width;
-                            if (mcmeta.height > texture.height) mcmeta.height = texture.height;
-                        }
-                        else {
-                            if (mcmeta.width == 0) mcmeta.width = texture.width;
-                            if (mcmeta.height == 0) mcmeta.height = texture.height;
-                        }
-                        if ((float)texture.width % (float)mcmeta.width != 0) return null;
-                        if ((float)texture.height % (float)mcmeta.height != 0) return null;
-                        modelFace.GetComponent<TextureAnimator>().animationMcmeta = mcmeta;
-                        return texture;
-                    }
-                    else {
-                        if (texture.width == texture.height) {
-                            mcmeta.ParseFrames();
-                            mcmeta.width = texture.width;
-                            mcmeta.height = texture.height;
-                            modelFace.GetComponent<TextureAnimator>().animationMcmeta = mcmeta;
-                            return texture;
-                        }
-                        return null;
-                    }
-                }
+                if (texture != null && LoadTextureMcmeta(value,texture) != null) return texture;
             }
         }
-        Debug.LogError("Couldn't find texture for key: " + key + " in the model " + model.name);
         return null;
+    }
+    private MinecraftMcmetaAnimation LoadTextureMcmeta(string value, Texture2D texture)
+    {
+        MinecraftMcmetaAnimation mcmeta = new(texture.width, texture.height);
+        if (File.Exists(value + ".mcmeta")) {
+            MinecraftMcmeta mcmeta2 = JsonConvert.DeserializeObject<MinecraftMcmeta>(File.ReadAllText(value + ".mcmeta"));
+            mcmeta = mcmeta2.animation;
+            if (mcmeta.width == 0 && mcmeta.height == 0) {
+                mcmeta.width = texture.width;
+                if (mcmeta.width > texture.height) mcmeta.width = texture.height;
+                mcmeta.height = texture.width;
+                if (mcmeta.height > texture.height) mcmeta.height = texture.height;
+            }
+            else {
+                if (mcmeta.width == 0) mcmeta.width = texture.width;
+                if (mcmeta.height == 0) mcmeta.height = texture.height;
+            }
+            if ((float)texture.width % (float)mcmeta.width != 0) return null;
+            if ((float)texture.height % (float)mcmeta.height != 0) return null;
+            return mcmeta;
+        }
+        else {
+            if (texture.width == texture.height) {
+                return mcmeta;
+            }
+            return null;
+        }
     }
     private bool IsAnyPixelTransparent(Texture2D texture, Vector2 uvMin, Vector2 uvMax)
     {

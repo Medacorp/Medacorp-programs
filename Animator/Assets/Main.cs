@@ -197,9 +197,9 @@ public class Main : MonoBehaviour
                     }
                 }
                 animationGroupDropdown.value = 0;
-                animationGroupDropdown.RefreshShownValue();
             }
             else animationGroupDropdown.options.Add(new TMP_Dropdown.OptionData("Loading animation groups"));
+            animationGroupDropdown.RefreshShownValue();
         }
         ClearModel();
     }

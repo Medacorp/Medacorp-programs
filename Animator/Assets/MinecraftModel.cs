@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using UnityEngine.InputSystem.Interactions;
 
 [Serializable]
 public class MinecraftModel {
@@ -39,22 +40,10 @@ public class MinecraftModelElement {
         size[0] = (to[0] - from[0]) / 16;
         size[1] = (to[1] - from[1]) / 16;
         size[2] = (to[2] - from[2]) / 16;
+        if (size[0] == 0) size[0] = 0.0001f;
+        if (size[1] == 0) size[1] = 0.0001f;
+        if (size[2] == 0) size[2] = 0.0001f;
         return size;
-    }
-    public Vector3 GetRotationAxis() {
-        Vector3 axis = new(0,0,0);
-        if (rotation != null) {
-            if (rotation.axis == 'x') {
-                axis.x = 1;
-            }
-            else if (rotation.axis == 'y') {
-                axis.y = 1;
-            }
-            else {
-                axis.z = 1;
-            }
-        }
-        return axis;
     }
     public Vector3 GetRotationPoint() {
         Vector3 origin = new(0,0,0);
@@ -69,9 +58,17 @@ public class MinecraftModelElement {
         float angle = 0;
         if (rotation != null) {
             angle = rotation.angle;
-            if (rotation.axis == 'x') angle = -angle;
         }
         return angle;
+    }
+    public float[] GetRotationEulerAngle() {
+        float[] angles = {0,0,0};
+        if (rotation != null) {
+            if (rotation.axis == 'x') angles[0] = rotation.angle;
+            else if (rotation.axis == 'y') angles[1] = rotation.angle;
+            else angles[2] = rotation.angle;
+        }
+        return angles;
     }
 
 }
@@ -151,10 +148,38 @@ public class MinecraftMcmetaAnimation {
     public int height;
     public int frametime;
 
+    public List<Texture2D> textures;
+
+    public MinecraftMcmetaAnimation(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
+    public void SetTexture(Texture2D texture) {
+        textures = new();
+        if (!(width == texture.width && height == texture.height)) {
+            float divWidth = (float)width / (float)texture.width;
+            float divHeight = (float)height / (float)texture.height;
+            for (float w = 0; w <= 1 - divWidth; w = w + divWidth) {
+                for (float h = 0; h <= 1 - divHeight; h = h + divHeight) {
+                    Texture2D frame = new(width,height);
+                    frame.SetPixels(texture.GetPixels(Mathf.FloorToInt(w * divWidth), Mathf.FloorToInt(h * divHeight), width, height));
+                    textures.Add(frame);
+                }
+            }
+        }
+        else {
+            textures.Add(texture);
+        }
+        ParseFrames();
+    }
+    public Texture2D GetFrame(int index) {
+        return textures[index];
+    }
+
     public List<object> frames;
 
-    public List<MinecraftMcmetaAnimationFrame> parsedFrames;
-    public void ParseFrames()
+    public List<MinecraftMcmetaAnimationFrame> parsedFrames = new List<MinecraftMcmetaAnimationFrame>();
+    private void ParseFrames()
     {
         parsedFrames = new List<MinecraftMcmetaAnimationFrame>();
 
@@ -180,6 +205,17 @@ public class MinecraftMcmetaAnimation {
                     MinecraftMcmetaAnimationFrame parsedFrame = frameObj.ToObject<MinecraftMcmetaAnimationFrame>();
                     parsedFrames.Add(parsedFrame);
                 }
+            }
+        }
+        else {
+            int frame = 0;
+            foreach (Texture2D texture in textures) {
+                parsedFrames.Add(new MinecraftMcmetaAnimationFrame
+                {
+                    index = frame,
+                    time = frametime
+                });
+                frame++;
             }
         }
     }

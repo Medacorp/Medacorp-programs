@@ -1,44 +1,52 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Unity.VisualScripting;
 using UnityEditor.Rendering;
 using UnityEngine;
 
 public class TextureAnimator : MonoBehaviour
 {
-    public MinecraftMcmetaAnimation animationMcmeta;
-    private List<float> uv;
-
-    private int width = 0;
-    private int height = 0;
-
-    private List<TextureAnimatorFrame> frames;
-    private float frameTime = 0;
-    private int currentFrame = -1;
-    private Vector2[] originalUVs;
+    public List<MinecraftMcmetaAnimation> animationMcmetas;
+    public List<TextureAnimatorFrame> textureAnimatorFrames;
+    public Rect[] rectangles;
+    public Texture2D textureAtlas;
     private static bool animationsMayRun = false;
+    private bool wasEnabled = false;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        Texture texture = gameObject.GetComponent<MeshRenderer>().material.mainTexture;
-        width = texture.width;
-        height = texture.height;
-        originalUVs = gameObject.GetComponent<MeshFilter>().mesh.uv;
-        if (uv != null && uv.Count != 0) SetFrames();
+        
     }
 
     // Update is called once per frame
     void Update()
     {
         if (animationsMayRun) {
-            if (frames != null && frames.Count > 1 ) {
-                frameTime = frameTime - Time.deltaTime * 20;
-                if (frameTime <= 0) GetNextFrame();
+            wasEnabled = true;
+            int i = 0;
+            foreach (MinecraftMcmetaAnimation animation in animationMcmetas) {
+                if (animation.parsedFrames.Count > 1) {
+                    textureAnimatorFrames[i].frameTime -= Time.deltaTime * 20;
+                    if (animation.interpolate) {
+                        NextInterpolatedFrame(animation, textureAnimatorFrames[i], rectangles[i]);
+                    }
+                    else if (textureAnimatorFrames[i].frameTime <= 0) NextFrame(animation, textureAnimatorFrames[i], rectangles[i]);
+                }
+                i++;
             }
+            gameObject.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
         }
         else {
-            currentFrame = -1;
-            frameTime = 0;
+            if (wasEnabled) {
+                int i = 0;
+                foreach (Rect rectangle in rectangles) {
+                    Texture2D newTexture = animationMcmetas[i].GetFrame(0);
+                    textureAtlas.SetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height), newTexture.GetPixels());
+                    if (animationMcmetas[i].parsedFrames.Count > 1) textureAnimatorFrames[i].frameTime = animationMcmetas[i].parsedFrames[0].time;
+                }
+            }
+            wasEnabled = false;
         }
     }
     public static void ToggleAnimations(bool value) {
@@ -47,80 +55,50 @@ public class TextureAnimator : MonoBehaviour
     public static bool EnabledAnimations() {
         return animationsMayRun;
     }
-    public void SetUV(List<float> newUVs) {
-        uv = new(){
-            newUVs[0] / 16,
-            newUVs[1] / 16,
-            newUVs[2] / 16,
-            newUVs[3] / 16
-        };
-        if (width != 0) SetFrames();
-    }
-    private void SetFrames() {
-        frames = new();
-        int textureHeight = height / animationMcmeta.height;
-        int textureWidth = width / animationMcmeta.width;
-        float frameHeight = 1 / (float)textureHeight;
-        float frameWidth = 1 / (float)textureWidth;
-        if (animationMcmeta.frames != null && animationMcmeta.frames.Count != 0) {
-            foreach (MinecraftMcmetaAnimationFrame frame in animationMcmeta.frames) {
-                TextureAnimatorFrame newframe = new();
-                int horizontalFrame = frame.index / textureHeight - 1;
-                int verticalFrame = frame.index % textureHeight - 1;
-                newframe.time = frame.time;
-                newframe.uv = new(){
-                    uv[0] + frameWidth * horizontalFrame,
-                    uv[1] + frameHeight * verticalFrame,
-                    uv[2] + frameWidth * horizontalFrame,
-                    uv[3] + frameHeight * verticalFrame
-                };
-                frames.Add(newframe);
-            }
+    public void SetValues(List<MinecraftMcmetaAnimation> animationMcmetas, Texture2D textureAtlas, Rect[] rectangles) {
+        this.animationMcmetas = animationMcmetas;
+        this.textureAtlas = textureAtlas;
+        this.rectangles = rectangles;
+        textureAnimatorFrames = new();
+        foreach (MinecraftMcmetaAnimation animation in animationMcmetas) {
+            TextureAnimatorFrame frame = new();
+            if (animation.parsedFrames.Count > 1) frame.frameTime = animation.parsedFrames[0].time;
+            textureAnimatorFrames.Add(new());
         }
-        else {
-            int time = 1;
-            if (animationMcmeta.frametime != 0) time = animationMcmeta.frametime;
-            for (int horizontalFrame = 0; horizontalFrame != textureWidth; horizontalFrame++) {
-                for (int verticalFrame = 0; verticalFrame != textureHeight; verticalFrame++) {
-                    TextureAnimatorFrame newframe = new();
-                    newframe.time = time;
-                    newframe.uv = new(){
-                        uv[0] + frameWidth * horizontalFrame,
-                        uv[1] + frameHeight * verticalFrame,
-                        uv[2] + frameWidth * horizontalFrame,
-                        uv[3] + frameHeight * verticalFrame
-                    };
-                    frames.Add(newframe);
-                }
-            }
-        }
-        SetFrame(0);
     }
-    private void GetNextFrame() {
-        int index = currentFrame + 1;
-        if (index == frames.Count) index = 0;
-        SetFrame(index);
+    public void NextFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
+        animator.currentFrame += 1;
+        if (animator.currentFrame == animation.parsedFrames.Count) animator.currentFrame = 0;
+        Texture2D newTexture = animation.GetFrame(animator.currentFrame);
+        textureAtlas.SetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height), newTexture.GetPixels());
+        animator.frameTime += animation.parsedFrames[animator.currentFrame].time;
+        if (animator.frameTime <= 0) NextFrame(animation, animator, rectangle);
     }
-    private void SetFrame(int index) {
-        Mesh mesh = gameObject.GetComponent<MeshFilter>().mesh;
-        Vector2[] uvs = mesh.uv;
-        Vector2 uvStart = new Vector2(frames[index].uv[0], frames[index].uv[1] * -1 + 1);
-        Vector2 uvEnd = new Vector2(frames[index].uv[2], frames[index].uv[3] * -1 + 1);
-        for (int l = 0; l < uvs.Length; l++)
-        {
-            
-            uvs[l] = new Vector2(
-                Mathf.Lerp(uvStart.x, uvEnd.x, originalUVs[l].x), 
-                Mathf.Lerp(uvStart.y, uvEnd.y, originalUVs[l].y)
+    public void NextInterpolatedFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
+        int nextFrame = animator.currentFrame + 1;
+        if (nextFrame == animation.parsedFrames.Count) nextFrame = 0;
+        float frameTimeAmount = animation.parsedFrames[animator.currentFrame].time / animator.frameTime;
+        Color[] currentFramePixels = animation.GetFrame(animator.currentFrame).GetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height));
+        Color[] nextFramePixels = animation.GetFrame(nextFrame).GetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height));
+        List<Color> newPixels = new();
+        for (int i = 0; i < currentFramePixels.Length; i++) {
+            Color newPixel = new(
+                (currentFramePixels[i].r - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].r + nextFramePixels[i].r - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].r) / 2,
+                (currentFramePixels[i].g - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].g + nextFramePixels[i].g - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].g) / 2,
+                (currentFramePixels[i].b - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].b + nextFramePixels[i].b - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].b) / 2,
+                (currentFramePixels[i].a - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].a + nextFramePixels[i].a - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].a) / 2
             );
+            newPixels.Add(newPixel);
         }
-        mesh.uv = uvs;
-        gameObject.GetComponent<MeshFilter>().mesh = mesh;
-        currentFrame = index;
-        frameTime += frames[index].time;
+        textureAtlas.SetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height), newPixels.ToArray());
+        if (animator.frameTime <= 0) {
+            animator.currentFrame = nextFrame;
+            animator.frameTime += animation.parsedFrames[animator.currentFrame].time;
+            if (animator.frameTime <= 0) NextFrame(animation, animator, rectangle);
+        }
     }
 }
 public class TextureAnimatorFrame {
-    public List<float> uv;
-    public float time;
+    public int currentFrame = 0;
+    public float frameTime = 0;
 }
