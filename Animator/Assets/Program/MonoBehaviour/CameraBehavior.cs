@@ -1,8 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
-using UnityEngine.Animations;
 using UnityEngine.EventSystems;
 
 public class CameraBehavior : MonoBehaviour

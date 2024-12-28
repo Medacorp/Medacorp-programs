@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
-using UnityEngine.InputSystem.Interactions;
 
 [Serializable]
 public class MinecraftModel {
@@ -28,7 +27,6 @@ public class MinecraftModelElement {
 
     public Vector3 GetCenter() {
         Vector3 size = new(0,0,0);
-        //(from + to)/2 gets offset from 0, which is the corner, - 8 gets the offset from the center
         size[0] = -((from[0] + to[0]) / 2 - 8) / 16;
         size[1] = ((from[1] + to[1]) / 2 - 8) / 16;
         size[2] = ((from[2] + to[2]) / 2 - 8) / 16;
@@ -157,12 +155,10 @@ public class MinecraftMcmetaAnimation {
     public void SetTexture(Texture2D texture) {
         textures = new();
         if (!(width == texture.width && height == texture.height)) {
-            float divWidth = (float)width / (float)texture.width;
-            float divHeight = (float)height / (float)texture.height;
-            for (float w = 0; w <= 1 - divWidth; w = w + divWidth) {
-                for (float h = 0; h <= 1 - divHeight; h = h + divHeight) {
+            for (float w = 0; w + width <= texture.width; w = w + width) {
+                for (float h = 0; h + height <= texture.height; h = h + height) {
                     Texture2D frame = new(width,height);
-                    frame.SetPixels(texture.GetPixels(Mathf.FloorToInt(w * divWidth), Mathf.FloorToInt(h * divHeight), width, height));
+                    frame.SetPixels(texture.GetPixels(Mathf.FloorToInt(w), Mathf.FloorToInt(h), width, height));
                     textures.Add(frame);
                 }
             }

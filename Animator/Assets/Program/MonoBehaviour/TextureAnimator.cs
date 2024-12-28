@@ -1,7 +1,4 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using Unity.VisualScripting;
-using UnityEditor.Rendering;
 using UnityEngine;
 
 public class TextureAnimator : MonoBehaviour
@@ -35,7 +32,6 @@ public class TextureAnimator : MonoBehaviour
                 }
                 i++;
             }
-            gameObject.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
         }
         else {
             if (wasEnabled) {
@@ -66,31 +62,46 @@ public class TextureAnimator : MonoBehaviour
             textureAnimatorFrames.Add(new());
         }
     }
+    public void UpdateTexture() {
+        textureAtlas.Apply();
+        gameObject.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
+    }
     public void NextFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
         animator.currentFrame += 1;
         if (animator.currentFrame == animation.parsedFrames.Count) animator.currentFrame = 0;
         Texture2D newTexture = animation.GetFrame(animator.currentFrame);
         textureAtlas.SetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height), newTexture.GetPixels());
+        UpdateTexture();
         animator.frameTime += animation.parsedFrames[animator.currentFrame].time;
         if (animator.frameTime <= 0) NextFrame(animation, animator, rectangle);
     }
     public void NextInterpolatedFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
         int nextFrame = animator.currentFrame + 1;
         if (nextFrame == animation.parsedFrames.Count) nextFrame = 0;
-        float frameTimeAmount = animation.parsedFrames[animator.currentFrame].time / animator.frameTime;
         Color[] currentFramePixels = animation.GetFrame(animator.currentFrame).GetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height));
         Color[] nextFramePixels = animation.GetFrame(nextFrame).GetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height));
         List<Color> newPixels = new();
         for (int i = 0; i < currentFramePixels.Length; i++) {
             Color newPixel = new(
-                (currentFramePixels[i].r - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].r + nextFramePixels[i].r - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].r) / 2,
-                (currentFramePixels[i].g - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].g + nextFramePixels[i].g - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].g) / 2,
-                (currentFramePixels[i].b - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].b + nextFramePixels[i].b - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].b) / 2,
-                (currentFramePixels[i].a - (frameTimeAmount - animation.parsedFrames[0].time) / currentFramePixels[i].a + nextFramePixels[i].a - (frameTimeAmount - animation.parsedFrames[0].time) / nextFramePixels[i].a) / 2
+                currentFramePixels[i].r - currentFramePixels[i].r * (animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time + nextFramePixels[i].r - nextFramePixels[i].r * ((animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time * -1 + 1),
+                currentFramePixels[i].g - currentFramePixels[i].g * (animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time + nextFramePixels[i].g - nextFramePixels[i].g * ((animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time * -1 + 1),
+                currentFramePixels[i].b - currentFramePixels[i].b * (animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time + nextFramePixels[i].b - nextFramePixels[i].b * ((animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time * -1 + 1),
+                currentFramePixels[i].a - currentFramePixels[i].a * (animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time + nextFramePixels[i].a - nextFramePixels[i].a * ((animation.parsedFrames[animator.currentFrame].time - animator.frameTime) / animation.parsedFrames[animator.currentFrame].time * -1 + 1)
             );
+            if (currentFramePixels[i].a == 0) {
+                newPixel.r = nextFramePixels[i].r;
+                newPixel.g = nextFramePixels[i].g;
+                newPixel.b = nextFramePixels[i].b;
+            }
+            else if (nextFramePixels[i].a == 0) {
+                newPixel.r = currentFramePixels[i].r;
+                newPixel.g = currentFramePixels[i].g;
+                newPixel.b = currentFramePixels[i].b;
+            }
             newPixels.Add(newPixel);
         }
         textureAtlas.SetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height), newPixels.ToArray());
+        UpdateTexture();
         if (animator.frameTime <= 0) {
             animator.currentFrame = nextFrame;
             animator.frameTime += animation.parsedFrames[animator.currentFrame].time;
