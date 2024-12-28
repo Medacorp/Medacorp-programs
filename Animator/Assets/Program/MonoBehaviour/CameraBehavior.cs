@@ -55,7 +55,8 @@ public class CameraBehavior : MonoBehaviour
             }
             else {
                 if (mouseWasDown == false && Physics.Raycast (ray, out hit, 100)) {
-                    Main.GetComponent<Main>().SetSelectedModelPart(hit.transform.parent.parent.parent.parent.gameObject);
+                    //(h)CompositeModel0.(p)Display.(p)TemplateVariant.(p)DefaultOffset.(p)RotationPoint.(p)TemplatePart
+                    Main.GetComponent<Main>().SetSelectedModelPart(hit.transform.parent.parent.parent.parent.parent.gameObject);
                     floats.Add(0);
                     floats.Add(0);
                 }
@@ -100,14 +101,9 @@ public class CameraBehavior : MonoBehaviour
         EventSystem.current.RaycastAll(eventData, raysastResults);
         return raysastResults;
     }
-    public void SetModelTop(float height) {
-        if (height > modelTop) modelTop = height; 
-        if (height == 0) modelTop = 0;
-        UpdateFocusHeight();
-    }
-    public void SetModelBottom(float height) {
-        if (height < modelBottom) modelBottom = height; 
-        if (height == 0) modelBottom = 0;
+    public void SetModelHeight(float bottom, float top) {
+        modelTop = top;
+        modelBottom = bottom;
         UpdateFocusHeight();
     }
     private void UpdateFocusHeight() {

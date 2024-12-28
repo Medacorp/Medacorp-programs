@@ -952,8 +952,14 @@ public class Main : MonoBehaviour
         variantNamePopUp.SetActive(false);
     }
     public void SetSelectedModelPart(GameObject selectedModelPart) {
-        this.selectedModelPart = selectedModelPart;
-        //Show left menu
+        if (this.selectedModelPart != selectedModelPart) {
+            if (this.selectedModelPart != null) this.selectedModelPart.GetComponent<ModelDisplay>().UnHighlight();
+            if (selectedModelPart != null) selectedModelPart.GetComponent<ModelDisplay>().Highlight();
+            this.selectedModelPart = selectedModelPart;
+        }
+        if (selectedModelPart != null) {
+            //Show left menu
+        }
     }
 
     public void SetModelOffset() {

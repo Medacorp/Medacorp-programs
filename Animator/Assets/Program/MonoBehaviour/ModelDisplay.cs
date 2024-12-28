@@ -29,8 +29,6 @@ public class ModelDisplay : MonoBehaviour
     private float[] offsets = {0,0,0};
     private static bool generatingModel = false;
     private static int generatingModelThreads = 0;
-    private static float heighestPoint = 0;
-    private static float lowestPoint = 0;
     public void SetOffsets(List<ConditionalModelPartOffset> conditionalOffsets) {
         this.conditionalOffsets = conditionalOffsets;
     }
@@ -140,9 +138,15 @@ public class ModelDisplay : MonoBehaviour
     }
     public void SetVisibleVariant(string variant) {
         if (variants == null) variants = new();
+        float highlight = GetHighlight();
         if (variants.Count != 0) {
             foreach (GameObject var in variants) {
-                if (var.name == variant) var.SetActive(true);
+                if (var.name == variant) {
+                    var.SetActive(true);
+                    for (int i = var.transform.childCount - 1; i >= 0; i--) {
+                        var.transform.GetChild(i).gameObject.GetComponent<TextureAnimator>().highlightDuration = highlight;
+                    }
+                }
                 else var.SetActive(false);
             }
         }
@@ -164,10 +168,30 @@ public class ModelDisplay : MonoBehaviour
         if (generatingModel && generatingModelThreads == 0) {
             TextureAnimator.ToggleAnimations(true);
             generatingModel = false;
-            cameraObject.GetComponent<CameraBehavior>().SetModelTop(heighestPoint);
-            cameraObject.GetComponent<CameraBehavior>().SetModelBottom(lowestPoint);
+            SetCameraHeight();
             print("model is done");
         }
+    }
+    public void SetCameraHeight() {
+        float heighestPoint = 0;
+        float lowestPoint = 0;
+        int totalModels = 0;
+        foreach (GameObject model in Main.GetComponent<Main>().modelParts) {
+            foreach (GameObject variant in model.GetComponent<ModelDisplay>().variants) {
+                for (int i = variant.transform.childCount - 1; i >= 0; i--) {
+                    GameObject thisdisplay = variant.transform.GetChild(i).gameObject; 
+                    if (thisdisplay.activeSelf) {
+                        thisdisplay.transform.SetParent(null);
+                        Bounds bounds = thisdisplay.GetComponent<MeshFilter>().mesh.bounds;
+                        heighestPoint += (bounds.max.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
+                        lowestPoint += (bounds.min.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
+                        thisdisplay.transform.SetParent(variant.transform);
+                        totalModels++;
+                    }
+                }
+            }
+        }
+        cameraObject.GetComponent<CameraBehavior>().SetModelHeight(lowestPoint / totalModels, heighestPoint / totalModels);
     }
     public void SetModel(Dictionary<string, string[]> variants, string[] defaultVariant, string visibleVariant) {
         if (display == null) Start();
@@ -177,14 +201,12 @@ public class ModelDisplay : MonoBehaviour
             }
             this.variants.Clear();
         }
-        cameraObject.GetComponent<CameraBehavior>().SetModelTop(0);
-        cameraObject.GetComponent<CameraBehavior>().SetModelBottom(0);
         TextureAnimator.ToggleAnimations(false);
-        GenerateModels(defaultVariant, "default", visibleVariant == "default");
         generatingModelThreads += 1;
+        GenerateModels(defaultVariant, "default", visibleVariant == "default");
         foreach (KeyValuePair<string,string[]> var in variants) {
-            GenerateModels(var.Value, var.Key, visibleVariant == var.Key);
             generatingModelThreads += 1;
+            GenerateModels(var.Value, var.Key, visibleVariant == var.Key);
         }
         generatingModel = true;
     }
@@ -322,6 +344,7 @@ public class ModelDisplay : MonoBehaviour
             List<MinecraftMcmetaAnimation> texturesAnimations = new();
             List<string> loadedTextures = new();
             Dictionary<string,int> textureAtlasPositions = new();
+            bool transparent = false;
             foreach (KeyValuePair<string,string> textureReference in minecraftModel.textures) {
                 Texture2D newtexture = LoadTexture(textureReference.Value);
                 MinecraftMcmetaAnimation textureMcmeta = LoadTextureMcmeta(textureReference.Value, newtexture);
@@ -333,6 +356,7 @@ public class ModelDisplay : MonoBehaviour
                 }
                 textureMcmeta.SetTexture(newtexture);
                 newtexture = textureMcmeta.GetFrame(0);
+                if (textureMcmeta.parsedFrames.Count > 1) transparent = true;
                 if (loadedTextures.Contains(textureName)) {
                     textureAtlasPositions.Add(textureReference.Key,loadedTextures.FindIndex(valueIndex => valueIndex == textureName));
                 }
@@ -355,7 +379,6 @@ public class ModelDisplay : MonoBehaviour
                 uvOffsetX.Add(textureReference.Key, rectangles[valueIndex].position.x);
                 uvOffsetY.Add(textureReference.Key, rectangles[valueIndex].position.y);
             }
-            newdisplay.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
             newdisplay.GetComponent<TextureAnimator>().SetValues(texturesAnimations, textureAtlas, rectangles);
             i++;
             Mesh mesh = new();
@@ -367,14 +390,14 @@ public class ModelDisplay : MonoBehaviour
                 float[] from = {-(element.from[0] - 8) / 16, (element.from[1] - 8) / 16, (element.from[2] - 8) / 16};
                 float[] to = {-(element.to[0] - 8) / 16, (element.to[1] - 8) / 16, (element.to[2] - 8) / 16};
                 List<Vector3> points = new(){
-                    new(from[0],from[1],from[2]),
-                    new(from[0],from[1],to[2]),
-                    new(from[0],to[1],from[2]),
-                    new(from[0],to[1],to[2]),
                     new(to[0],from[1],from[2]),
                     new(to[0],from[1],to[2]),
                     new(to[0],to[1],from[2]),
-                    new(to[0],to[1],to[2])
+                    new(to[0],to[1],to[2]),
+                    new(from[0],from[1],from[2]),
+                    new(from[0],from[1],to[2]),
+                    new(from[0],to[1],from[2]),
+                    new(from[0],to[1],to[2])
                 };
                 if (element.GetRotationAngle() != 0) {
                     List<Vector3> newpoints = new();
@@ -407,45 +430,45 @@ public class ModelDisplay : MonoBehaviour
                     int index = vertices.Count;
                     bool validKey = false;
                     if (face.Key == "east") {
-                        vertices.Add(points[5]);
-                        vertices.Add(points[7]);
-                        vertices.Add(points[6]);
-                        vertices.Add(points[4]);
+                        vertices.Add(points[1]);
+                        vertices.Add(points[3]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[0]);
                         validKey = true;
                     }
                     else if (face.Key == "down") {
-                        vertices.Add(points[0]);
-                        vertices.Add(points[1]);
-                        vertices.Add(points[5]);
                         vertices.Add(points[4]);
+                        vertices.Add(points[5]);
+                        vertices.Add(points[1]);
+                        vertices.Add(points[0]);
                         validKey = true;
                     }
                     else if (face.Key == "north") {
-                        vertices.Add(points[4]);
-                        vertices.Add(points[6]);
-                        vertices.Add(points[2]);
                         vertices.Add(points[0]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[4]);
                         validKey = true;
                     }
                     else if (face.Key == "south") {
-                        vertices.Add(points[1]);
-                        vertices.Add(points[3]);
-                        vertices.Add(points[7]);
                         vertices.Add(points[5]);
+                        vertices.Add(points[7]);
+                        vertices.Add(points[3]);
+                        vertices.Add(points[1]);
                         validKey = true;
                     }
                     else if (face.Key == "up") {
-                        vertices.Add(points[3]);
-                        vertices.Add(points[2]);
-                        vertices.Add(points[6]);
                         vertices.Add(points[7]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[2]);
+                        vertices.Add(points[3]);
                         validKey = true;
                     }
                     else if (face.Key == "west") {
-                        vertices.Add(points[0]);
-                        vertices.Add(points[2]);
-                        vertices.Add(points[3]);
-                        vertices.Add(points[1]);
+                        vertices.Add(points[4]);
+                        vertices.Add(points[6]);
+                        vertices.Add(points[7]);
+                        vertices.Add(points[5]);
                         validKey = true;
                     }
                     if (validKey) {
@@ -474,6 +497,9 @@ public class ModelDisplay : MonoBehaviour
                     }
                 }
             }
+            if (!transparent && TransparentArea(uv,textureAtlas)) transparent = true;
+            if (transparent) newdisplay.GetComponent<MeshRenderer>().material = transparentMaterial;
+            newdisplay.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
             mesh.vertices = vertices.ToArray();
             mesh.uv = uv.ToArray();
             mesh.triangles = triangles.ToArray();
@@ -486,6 +512,7 @@ public class ModelDisplay : MonoBehaviour
             newdisplay.transform.localRotation = Quaternion.Euler(0,0,0);
             newdisplay.GetComponent<MeshFilter>().sharedMesh = mesh;
             newdisplay.GetComponent<MeshCollider>().sharedMesh = mesh;
+            newdisplay.GetComponent<TextureAnimator>().unalteredMesh = mesh;
             newdisplay.transform.localScale = trueScale;
             newdisplay.transform.localPosition = truePosition;
             newdisplay.transform.localRotation = trueRotation;
@@ -493,17 +520,16 @@ public class ModelDisplay : MonoBehaviour
             MinecraftModelDisplay value = new();
             try {
                 minecraftModel.display.TryGetValue("head", out value);
-                newdisplay.transform.localPosition = value.GetTranslation();
+                Vector3 newPos = value.GetTranslation();
+                newPos.x *= -1;
+                newdisplay.transform.localPosition = newPos;
                 newdisplay.transform.localScale = value.GetScale();
                 newdisplay.transform.localRotation = value.GetRotation();
             }
             catch {
                 //Doesn't exist, use defaults
             }
-            Bounds bounds = mesh.bounds;
             newdisplay.SetActive(true);
-            if (heighestPoint < bounds.max.y) heighestPoint = bounds.max.y;
-            if (lowestPoint > bounds.min.y) lowestPoint = bounds.min.y;
         }
         generatingModelThreads -= 1;
     }
@@ -549,5 +575,47 @@ public class ModelDisplay : MonoBehaviour
             }
             return null;
         }
+    }
+    private bool TransparentArea(List<Vector2> uv, Texture2D texture)
+    {
+        int totalPixels = 0;
+        int transparentPixels = 0;
+        for (int i = 0; i < uv.Count; i += 4) {
+            int[] uvs = {Mathf.FloorToInt(Mathf.Min(uv[i].x,uv[i+2].x) * texture.width), Mathf.FloorToInt(Mathf.Min(uv[i+1].y,uv[i+3].y) * texture.height), Mathf.FloorToInt(Mathf.Max(uv[i].x,uv[i+2].x) * texture.width), Mathf.FloorToInt(Mathf.Max(uv[i+1].y,uv[i+3].y) * texture.height)};
+            if (uvs[0] == uvs[2]) uvs[2] += 1;
+            if (uvs[1] == uvs[3]) uvs[3] += 1;
+            for (int x = uvs[0]; x < uvs[2]; x++) {
+                for (int y = uvs[1]; y < uvs[3]; y++) {
+                    totalPixels++;
+                    Color pixel = texture.GetPixel(x,y);
+                    if (pixel.a <= 0.9f) transparentPixels++;
+                }
+            }
+        }
+        return (float)transparentPixels / (float)totalPixels > 0.25;
+    }
+    public void UnHighlight() {
+        foreach (GameObject variant in variants) {
+            for(int i = variant.transform.childCount - 1; i >= 0; i--) {
+                GameObject thisDisplay = variant.transform.GetChild(i).gameObject;
+                thisDisplay.GetComponent<TextureAnimator>().highlight = false;
+            }
+        }
+    }
+    public void Highlight() {
+        foreach (GameObject variant in variants) {
+            for(int i = variant.transform.childCount - 1; i >= 0; i--) {
+                GameObject thisDisplay = variant.transform.GetChild(i).gameObject;
+                thisDisplay.GetComponent<TextureAnimator>().highlight = true;
+            }
+        }
+    }
+    private float GetHighlight() {
+        foreach (GameObject variant in variants) {
+            for(int i = variant.transform.childCount - 1; i >= 0; i--) {
+                if (variant.transform.GetChild(i).gameObject.activeSelf) return variant.transform.GetChild(i).gameObject.GetComponent<TextureAnimator>().highlightDuration;
+            }
+        }
+        return 0;
     }
 }

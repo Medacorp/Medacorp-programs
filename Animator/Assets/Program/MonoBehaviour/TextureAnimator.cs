@@ -3,10 +3,14 @@ using UnityEngine;
 
 public class TextureAnimator : MonoBehaviour
 {
-    public List<MinecraftMcmetaAnimation> animationMcmetas;
-    public List<TextureAnimatorFrame> textureAnimatorFrames;
-    public Rect[] rectangles;
-    public Texture2D textureAtlas;
+    private List<MinecraftMcmetaAnimation> animationMcmetas;
+    private List<TextureAnimatorFrame> textureAnimatorFrames;
+    private Rect[] rectangles;
+    private Texture2D textureAtlas;
+    public Mesh unalteredMesh;
+    public bool highlight = false;
+    private bool wasHighlight = false;
+    public float highlightDuration;
     private static bool animationsMayRun = false;
     private bool wasEnabled = false;
 
@@ -43,6 +47,23 @@ public class TextureAnimator : MonoBehaviour
                 }
             }
             wasEnabled = false;
+        }
+        if (highlight) {
+            wasHighlight = true;
+            highlightDuration += Time.deltaTime;
+            while (highlightDuration >= 2) {
+                highlightDuration -= 2;
+            }
+            float value;
+            if (highlightDuration < 1) value = highlightDuration/4;
+            else value = 0.25f-(highlightDuration-1)/4;
+            gameObject.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor",new(value,value,value));
+        }
+        else if (wasHighlight) {
+            wasHighlight = false;
+            highlightDuration = 0;
+            gameObject.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor",new(0,0,0));
+
         }
     }
     public static void ToggleAnimations(bool value) {
