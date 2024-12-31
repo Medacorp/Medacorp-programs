@@ -20,64 +20,64 @@ public class ModelPart {
     private List<ConditionalModelPartPose> poseConditions = new();
     private List<ConditionalModelPartVariant> variantConditions = new();
 
-    public void addConditionalOffset(string conditions, float[] offsets) {
+    public void addConditionalOffset(string tags, string scores, float[] offsets) {
         ConditionalModelPartOffset condition = new();
-        condition.conditions = conditions;
+        condition.conditions = tags + " " + scores;
         if (offsetConditions.Count != 0) {
             foreach (ConditionalModelPartOffset offset in offsetConditions) {
-                if (offset.conditions == conditions) {
+                if (offset.conditions == tags + " " + scores) {
                     condition = offset;
                     offsetConditions.Remove(condition);
                     break;
                 }
             }
         }
-        condition.SetConditions(conditions, offsets);
+        condition.SetConditions(tags, scores, offsets);
         offsetConditions.Add(condition);
     }
-    public void addConditionalPose(string conditions, float[] defaultState) {
+    public void addConditionalPose(string tags, string scores, float[] defaultState) {
         ConditionalModelPartPose condition = new();
-        condition.conditions = conditions;
+        condition.conditions = tags + " " + scores;
         if (poseConditions.Count != 0) {
             foreach (ConditionalModelPartPose pose in poseConditions) {
-                if (pose.conditions == conditions) {
+                if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     poseConditions.Remove(condition);
                     break;
                 }
             }
         }
-        condition.SetConditions(conditions, defaultState);
+        condition.SetConditions(tags, scores, defaultState);
         poseConditions.Add(condition);
     }
-    public void addConditionalPose(string conditions, float defaultState, int axis) {
+    public void addConditionalPose(string tags, string scores, float defaultState, int axis) {
         ConditionalModelPartPose condition = new();
-        condition.conditions = conditions;
+        condition.conditions = tags + " " + scores;
         if (poseConditions.Count != 0) {
             foreach (ConditionalModelPartPose pose in poseConditions) {
-                if (pose.conditions == conditions) {
+                if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     poseConditions.Remove(condition);
                     break;
                 }
             }
         }
-        condition.SetConditions(conditions, defaultState, axis);
+        condition.SetConditions(tags, scores, defaultState, axis);
         poseConditions.Add(condition);
     }
-    public void addConditionalModelVariant(string conditions, string variant) {
+    public void addConditionalModelVariant(string tags, string scores, string variant) {
         ConditionalModelPartVariant condition = new();
-        condition.conditions = conditions;
+        condition.conditions = tags + " " + scores;
         if (variantConditions.Count != 0) {
             foreach (ConditionalModelPartVariant pose in variantConditions) {
-                if (pose.conditions == conditions) {
+                if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     variantConditions.Remove(condition);
                     break;
                 }
             }
         }
-        condition.SetConditions(conditions, variant);
+        condition.SetConditions(tags, scores, variant);
         variantConditions.Add(condition);
     }
     public List<ConditionalModelPartOffset> GetOffsets() {
@@ -185,74 +185,91 @@ public class ModelPart {
         if (models.Length != 0) variants.Add(variant,models);
     }
 }
-public class ConditionalModelPartPose {
-    private float defaultStateX = 9999;
-    private float defaultStateY = 9999;
-    private float defaultStateZ = 9999;
+public class ConditionalModelPartSetting {
     public string conditions;
-    public Dictionary<string,bool> tags;
-
-    public void SetConditions(string conditions, float[] defaultState) {
-        this.conditions = conditions;
-        defaultStateX = -defaultState[0];
-        defaultStateY = defaultState[1];
-        defaultStateZ = defaultState[2];
-        tags = new();
+    public Dictionary<string,bool> tags = new();
+    public Dictionary<string,string> scores = new();
+    public void SetConditions(string tags, string scores) {
+        conditions = tags + " " + scores;
+        this.tags = new();
+        this.scores = new();
         if (conditions != "") {
             string[] entries = conditions.Split(",");
             foreach (string entry in entries) {
                 string[] split = entry.Split("=");
                 if (split[1].StartsWith("!")) {
-                    if (!split[1].Remove(0,1).StartsWith("was_")) tags.Add(split[1].Remove(0,1),false);
+                    if (!split[1].Remove(0,1).StartsWith("was_")) this.tags.Add(split[1].Remove(0,1),false);
                 }
-                else if (!split[1].StartsWith("was_")) tags.Add(split[1],true);
+                else if (!split[1].StartsWith("was_")) this.tags.Add(split[1],true);
             }
         }
     }
+    public bool ConditionsMatch(Main mainScript) {
+        if (tags.Count != 0) {
+            foreach (KeyValuePair<string,bool> tag in tags) {
+                if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) return false;
+            }
+        }
+        if (scores.Count != 0) {
+            foreach (KeyValuePair<string,string> score in scores) {
+                int scoreValue;
+                string[] scoreKeyStrings = score.Key.Split(" ");
+                string scoreKey = scoreKeyStrings[scoreKeyStrings.Length-2] + " " + scoreKeyStrings[scoreKeyStrings.Length-1];
+                mainScript.scoreValues.TryGetValue(scoreKey, out scoreValue);
+                if (score.Key.StartsWith("if")) {
+                    if (!score.Value.Contains("..") && scoreValue != Convert.ToInt32(score.Value)) return false;
+                    else if (score.Value.StartsWith("..")) {
+                        string[] split = score.Value.Split("..");
+                        if (split[0] == "" && scoreValue > Convert.ToInt32(split[1])) return false;
+                        else if (split[1] == "" && scoreValue < Convert.ToInt32(split[0])) return false;
+                        else if (!(scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1]))) return false;
+                    }
+                }
+                else {
+                    if (!score.Value.Contains("..") && scoreValue == Convert.ToInt32(score.Value)) return false;
+                    else if (score.Value.StartsWith("..")) {
+                        string[] split = score.Value.Split("..");
+                        if (split[0] == "" && scoreValue <= Convert.ToInt32(split[1])) return false;
+                        else if (split[1] == "" && scoreValue >= Convert.ToInt32(split[0])) return false;
+                        else if (scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1])) return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
 
-    public void SetConditions(string conditions, float defaultState, int axis) {
-        this.conditions = conditions;
+}
+public class ConditionalModelPartPose : ConditionalModelPartSetting {
+    private float defaultStateX = 9999;
+    private float defaultStateY = 9999;
+    private float defaultStateZ = 9999;
+
+    public void SetConditions(string tags, string scores, float[] defaultState) {
+        defaultStateX = -defaultState[0];
+        defaultStateY = defaultState[1];
+        defaultStateZ = defaultState[2];
+        SetConditions(tags, scores);
+    }
+
+    public void SetConditions(string tags, string scores, float defaultState, int axis) {
         if (axis == 0) defaultStateX = -defaultState;
         else if (axis == 1) defaultStateY = defaultState;
         else defaultStateZ = defaultState;
-        tags = new();
-        if (conditions != "") {
-            string[] entries = conditions.Split(",");
-            foreach (string entry in entries) {
-                string[] split = entry.Split("=");
-                if (split[1].StartsWith("!")) {
-                    if (!split[1].Remove(0,1).StartsWith("was_")) tags.Add(split[1].Remove(0,1),false);
-                }
-                else if (!split[1].StartsWith("was_")) tags.Add(split[1],true);
-            }
-        }
+        SetConditions(tags, scores);
     }
     public float[] GetPoses() {
         float[] poses = {defaultStateX, defaultStateY, defaultStateZ};
         return poses;
     }
 }
-public class ConditionalModelPartOffset {
+public class ConditionalModelPartOffset : ConditionalModelPartSetting {
     private float[] offsets = {0,0,0};
-    public string conditions;
 
-    public void SetConditions(string conditions, float[] offsets) {
-        this.conditions = conditions;
+    public void SetConditions(string tags, string scores, float[] offsets) {
         this.offsets = offsets;
-        tags = new();
-        if (conditions != "") {
-            string[] entries = conditions.Split(",");
-            foreach (string entry in entries) {
-                string[] split = entry.Split("=");
-                if (split[1].StartsWith("!")) {
-                    tags.Add(split[1].Remove(0,1),false);
-                }
-                else tags.Add(split[1],true);
-            }
-        }
+        SetConditions(tags, scores);
     }
-
-    public Dictionary<string,bool> tags;
     public void SetOffsets(float[] offsets) {
         this.offsets = offsets;
     }
@@ -261,27 +278,13 @@ public class ConditionalModelPartOffset {
     }
 
 }
-public class ConditionalModelPartVariant {
+public class ConditionalModelPartVariant : ConditionalModelPartSetting {
     private string variant = "default";
-    public string conditions;
 
-    public void SetConditions(string conditions, string variant) {
-        this.conditions = conditions;
+    public void SetConditions(string tags, string scores, string variant) {
         this.variant = variant;
-        tags = new();
-        if (conditions != "") {
-            string[] entries = conditions.Split(",");
-            foreach (string entry in entries) {
-                string[] split = entry.Split("=");
-                if (split[1].StartsWith("!")) {
-                    tags.Add(split[1].Remove(0,1),false);
-                }
-                else tags.Add(split[1],true);
-            }
-        }
+        SetConditions(tags, scores);
     }
-
-    public Dictionary<string,bool> tags;
     public void SetModelVariant(string variant) {
         this.variant = variant;
     }

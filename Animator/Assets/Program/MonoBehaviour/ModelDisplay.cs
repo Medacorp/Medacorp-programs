@@ -81,13 +81,7 @@ public class ModelDisplay : MonoBehaviour
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalOffsets.Count != 0) {
             foreach (ConditionalModelPartOffset offset in conditionalOffsets) {
-                bool success = true;
-                if (offset.tags != null && offset.tags.Count != 0){
-                    foreach (KeyValuePair<string,bool> tag in offset.tags) {
-                        if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) success = false;
-                    }
-                }
-                if (success) {
+                if (offset.ConditionsMatch(mainScript)) {
                     float[] offsets2 = offset.GetOffsets();
                     offsets[0] += offsets2[0];
                     offsets[1] += offsets2[1];
@@ -102,13 +96,7 @@ public class ModelDisplay : MonoBehaviour
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalPoses.Count != 0) {
             foreach (ConditionalModelPartPose pose in conditionalPoses) {
-                bool success = true;
-                if (pose.tags != null && pose.tags.Count != 0){
-                    foreach (KeyValuePair<string,bool> tag in pose.tags) {
-                        if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) success = false;
-                    }
-                }
-                if (success) {
+                if (pose.ConditionsMatch(mainScript)) {
                     float[] poses2 = pose.GetPoses();
                     if (poses2[0] != 9999) poses[0] = poses2[0];
                     if (poses2[1] != 9999) poses[1] = poses2[1];
@@ -123,13 +111,7 @@ public class ModelDisplay : MonoBehaviour
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalVariants.Count != 0) {
             foreach (ConditionalModelPartVariant variant in conditionalVariants) {
-                bool success = true;
-                if (variant.tags != null && variant.tags.Count != 0){
-                    foreach (KeyValuePair<string,bool> tag in variant.tags) {
-                        if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) success = false;
-                    }
-                }
-                if (success) {
+                if (variant.ConditionsMatch(mainScript)) {
                     value = variant.GetModelVariant();
                 }
             }

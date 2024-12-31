@@ -19,7 +19,7 @@ public class Main : MonoBehaviour
     private string selectedAddOn;
     public GameObject animationGroupSelector;
     private string selectedAnimationGroup;
-    private string[] entityID = {"",""};
+    private string[] entityID = {"","",""};
     private List<string> validEntities;
     public GameObject animationSelector;
     private string selectedAnimation;
@@ -44,6 +44,7 @@ public class Main : MonoBehaviour
     public GameObject entity;
     public GameObject templateModelPart;
     public GameObject templateTagToggle;
+    public GameObject templateScoreToggle;
     public GameObject entityOffsetInput;
     public List<GameObject> modelParts;
     public List<string> enabledTags = new();
@@ -313,6 +314,8 @@ public class Main : MonoBehaviour
                         foreach (string line in File.ReadLines(newpath)) {
                             if (line.Contains("teleport @s") && line.Contains("^")) {
                                 string[] splitLine = line.Split("teleport @s");
+                                string scores = "";
+                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
                                 string[] split = splitLine[splitLine.Length-1].Split(" ~");
                                 string[] offsets = split[0].Split(" ^");
                                 offsets[0] = offsets[0].Replace("[","").Replace("]","").Replace(" ","");
@@ -321,35 +324,42 @@ public class Main : MonoBehaviour
                                 if (offsets[2].Length == 0) offsets[2] = "0";
                                 if (offsets[3].Length == 0) offsets[3] = "0";
                                 float[] offsetfloats = {(float)Convert.ToDouble(offsets[1]),(float)Convert.ToDouble(offsets[2]),-(float)Convert.ToDouble(offsets[3])};
-                                part.addConditionalOffset(offsets[0],offsetfloats);
+                                part.addConditionalOffset(offsets[0],scores,offsetfloats);
                                 if (offsets[0] != "") CreateTagToggles(offsets[0]);
+                                if (scores != "") CreateScoreToggles(scores);
                             }
                             else if (line.Contains("data modify entity @s") && line.Contains("Pose.Head")) {
                                 string[] splitLine = line.Split("data modify entity @s");
+                                string scores = "";
+                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
                                 string[] split = splitLine[splitLine.Length-1].Split(" Pose.Head");
                                 string[] strings = split[1].Replace("[","").Replace("]","").Split(" set value ");
                                 split[0] = split[0].Replace("[","").Replace("]","").Replace(" ","");
                                 strings[1] = strings[1].Replace("f","");
-                                if (strings[0] != "") part.addConditionalPose(split[0], Convert.ToSingle(strings[1]), Convert.ToInt32(strings[0]));
+                                if (strings[0] != "") part.addConditionalPose(split[0], scores,Convert.ToSingle(strings[1]), Convert.ToInt32(strings[0]));
                                 else {
                                     float[] defaultPose = {0,0,0};
                                     strings = strings[1].Replace("f","").Replace("[","").Replace("f]","").Split(",");
                                     defaultPose[0] = Convert.ToSingle(strings[0]);
                                     defaultPose[1] = Convert.ToSingle(strings[1]);
                                     defaultPose[2] = Convert.ToSingle(strings[2]);
-                                    part.addConditionalPose(split[0], defaultPose);
+                                    part.addConditionalPose(split[0], scores,defaultPose);
                                 }
                                 if (split[0] != "") CreateTagToggles(split[0]);
+                                if (scores != "") CreateScoreToggles(scores);
                             }
                             else if (line.Contains("data modify entity @s") && line.Contains("model_data.")) {
                                 string[] splitLine = line.Split("data modify entity @s");
+                                string scores = "";
+                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
                                 string[] split = {};
                                 if (line.Contains(" ArmorItems[3]")) split = splitLine[splitLine.Length-1].Split(" ArmorItems[3]");
                                 else if (line.Contains(" Item")) split = splitLine[splitLine.Length-1].Split(" Item");
                                 split[0] = split[0].Replace("[","").Replace("]","").Replace(" ","");
                                 string modelPiece = split[split.Length-1].Split("model_data.")[1];
-                                part.addConditionalModelVariant(split[0],modelPiece);
+                                part.addConditionalModelVariant(split[0],scores,modelPiece);
                                 if (split[0] != "") CreateTagToggles(split[0]);
+                                if (scores != "") CreateScoreToggles(scores);
                                 if (!part.VariantExists(modelPiece)) {
                                     string selectedFile = SelectModelFile(part.GetName(), modelPiece);
                                     if (selectedFile != "") {
@@ -390,6 +400,22 @@ public class Main : MonoBehaviour
             }
         }
     }
+    private string GetScores(string execute) {
+        string scores = "";
+        string newexecute = execute.Replace("execute","").Replace(" run ","");
+        for (int i = 0; i < newexecute.Length; i++) {
+            if (i >= 9 && newexecute[(i-9)..i] == " if score ") {
+                string[] newscore = newexecute[(i+1)..].Split(" ");
+                scores = scores + "|if " + newscore[0] + " " + newscore[1];
+            }
+            else if (i >= 13 && newexecute[(i-13)..i] == " unless score ") {
+                string[] newscore = newexecute[(i+1)..].Split(" ");
+                scores = scores + "|unless " + newscore[0] + " " + newscore[1];
+            }
+        }
+        if (scores.StartsWith("|")) scores = scores[1..];
+        return scores;
+    }
     private void ClearFieldToggles() {
         foreach (GameObject toggle in fieldToggles) {
             Destroy(toggle);
@@ -405,7 +431,6 @@ public class Main : MonoBehaviour
         foreach (string con in split) {
             if (!createdTagToggles.Contains(con) && !con.StartsWith("was_")) {
                 GameObject toggle = Instantiate(templateTagToggle, templateTagToggle.transform.position, new Quaternion(), templateTagToggle.transform.parent);
-                toggle.transform.localPosition = toggle.transform.localPosition + new Vector3(0,-25 * fieldToggles.Count,0);
                 toggle.SetActive(true);
                 createdTagToggles.Add(con);
                 toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = con;
@@ -415,14 +440,14 @@ public class Main : MonoBehaviour
     }
     
     private void CreateScoreToggles(string conditions) {
-        string[] split = conditions.Split(" ");
+        string[] split = conditions.Split("|");
         foreach (string con in split) {
-            if (!createdTagToggles.Contains(con) && !con.StartsWith("was_")) {
-                GameObject toggle = Instantiate(templateTagToggle, templateTagToggle.transform.position, new Quaternion(), templateTagToggle.transform.parent);
-                toggle.transform.localPosition = toggle.transform.localPosition + new Vector3(0,-25 * fieldToggles.Count,0);
+            if (!createdScoreToggles.Contains(con)) {
+                GameObject toggle = Instantiate(templateScoreToggle, templateScoreToggle.transform.position, new Quaternion(), templateScoreToggle.transform.parent);
                 toggle.SetActive(true);
-                createdTagToggles.Add(con);
-                toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = con;
+                createdScoreToggles.Add(con);
+                string[] score = con.Split(" ");
+                toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = score[score.Length-2] + " " + score[score.Length-1];
                 fieldToggles.Add(toggle);
             }
         }
@@ -438,12 +463,14 @@ public class Main : MonoBehaviour
         }
     }
     private void GetAnimations(string path, string animationNamespace, string animationID) {
+        //TODO: If there's sub-animations, check if root-animations call their functions, if so, ignore
         if (singleModelObject) {
             foreach (string folder in Directory.GetDirectories(path + animationID + "/")) {
                 string[] split = folder.Split("/");
                 string animationName = animationID + "/" + split[split.Length-1];
                 foreach (string file in Directory.GetFiles(path + animationID + "/")) {
                     string[] split2 = file.Split("/");
+                    //Detect sub-entity group; their animations should not be included in this entity group's animation list
                     if (split2[split2.Length-1] == "call_part_function.mcfunction") {
                         return;
                     }
