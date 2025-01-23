@@ -5,7 +5,7 @@ import readchar
 from contextlib import redirect_stdout
 from datetime import datetime
 
-def write(string: str, debug: bool):
+def write(string: str, debug: bool | None = False):
     timeNow = datetime.now()
     timeFormat = timeNow.strftime("%H:%M:%S")
     if debug == False: print(string)
@@ -28,11 +28,11 @@ if os.path.exists(executionPath + "logs/" + dateFormat + ".log"):
             print("\n\n")
 if os.path.exists(executionPath + "logs/latest.log"): os.remove(executionPath + "logs/latest.log")
 write("Running \"euler to transformation rotation\" program", True)
-write("You can find the logs here: " + executionPath[slice(0,-1)], False)
+write("You can find the logs here: " + executionPath[slice(0,-1)])
 print("")
 
 while True:
-    write("Which rotation type do you want to use? (Q or A; S to close)", False)
+    write("Which rotation type do you want to use? (Q or A; S to close)")
     selected = "u"
     while selected == "u":
         selected = readchar.readkey()
@@ -40,7 +40,7 @@ while True:
             selected = "u"
     if selected == "s":
         break
-    write("Input pitch (x) in degrees:", False)
+    write("Input pitch (x) in degrees:")
     pitch = ""
     while pitch == "":
         value = input()
@@ -48,8 +48,8 @@ while True:
         try:
             pitch = float(value)
         except:
-            write("Not a valid number", False)
-    write("Input yaw (y) in degrees:", False)
+            write("Not a valid number")
+    write("Input yaw (y) in degrees:")
     yaw = ""
     while yaw == "":
         value = input()
@@ -57,8 +57,8 @@ while True:
         try:
             yaw = float(value)
         except:
-            write("Not a valid number", False)
-    write("Input roll (z) in degrees:", False)
+            write("Not a valid number")
+    write("Input roll (z) in degrees:")
     roll = ""
     while roll == "":
         value = input()
@@ -66,7 +66,7 @@ while True:
         try:
             roll = float(value)
         except:
-            write("Not a valid number", False)
+            write("Not a valid number")
     pitchrad = pitch * math.pi / 180
     yawrad = yaw * math.pi / 180
     rollrad = roll * math.pi / 180
@@ -82,7 +82,7 @@ while True:
         y = cpitch * syaw * croll + spitch * cyaw * sroll
         z = cpitch * cyaw * sroll - spitch * syaw * croll
 
-        write("Quaternion:[" + str(x) + "f," + str(y) + "f," + str(z) + "f," + str(w) + "f]", False)
+        write("Quaternion:[" + str(x) + "f," + str(y) + "f," + str(z) + "f," + str(w) + "f]")
     else:
         cyaw = math.cos(yawrad * 0.5)
         syaw = math.sin(yawrad * 0.5)
@@ -106,5 +106,5 @@ while True:
             y = y / norm
             z = z / norm
 
-        write("Axis-Angle:{angle:" + str(angle) + "f,axis:[" + str(x) + "f," + str(y) + "f," + str(z) + "f]}", False)
-    write("", False)
+        write("Axis-Angle:{angle:" + str(angle) + "f,axis:[" + str(x) + "f," + str(y) + "f," + str(z) + "f]}")
+    write("")

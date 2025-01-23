@@ -10,7 +10,7 @@ import zlib
 from contextlib import redirect_stdout
 from datetime import datetime
 
-def write(string: str, debug: bool):
+def write(string: str, debug: bool | None = False):
     timeNow = datetime.now()
     timeFormat = timeNow.strftime("%H:%M:%S")
     if debug == False: print(string)
@@ -22,6 +22,47 @@ def write(string: str, debug: bool):
         with redirect_stdout(logFile):
             if debug == False: print("[" + timeFormat + "] " + string)
             else: print("[" + timeFormat + "] [DEBUGGER] " + string)
+def verifyDimensions(folder: str, namespace: str, ID: str) -> bool:
+    succeed = True
+    for dID in [name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name))]:
+        if ID == "":
+            newID = dID
+        else:
+            newID = ID + "/" + dID
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/chunks.dat")):
+            write("VERIFY: Dimension " + namespace + ":" + newID + " has forceloaded chunks")
+            succeed = False
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/raids.dat")):
+            write("VERIFY: Dimension " + namespace + ":" + newID + " has raids")
+            succeed = False
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/entities")):
+            write("VERIFY: Dimension " + namespace + ":" + newID + " has entity files")
+            succeed = False
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/poi")):
+            write("VERIFY: Dimension " + namespace + ":" + newID + " has POI files")
+            succeed = False
+        subSucceed = verifyDimensions(folder + "/" + dID, namespace, newID)
+        if (subSucceed == False): succeed = False
+    return succeed
+def resetDimensions(folder: str, namespace: str, ID: str):
+    for dID in [name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name))]:
+        if ID == "":
+            newID = dID
+        else:
+            newID = ID + "/" + dID
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/chunks.dat")):
+            write("RESET: Dimension " + namespace + ":" + newID + " had its forceloaded chunks deleted")
+            os.remove(os.path.join(folder + "/" + dID + "/data/chunks.dat"))
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/raids.dat")):
+            write("RESET: Dimension " + namespace + ":" + newID + " had its raids deleted")
+            os.remove(os.path.join(folder + "/" + dID + "/data/raids.dat"))
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/entities")):
+            write("RESET: Dimension " + namespace + ":" + newID + " had its entity files deleted")
+            shutil.rmtree(os.path.join(folder + "/" + dID + "/entities"))
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/poi")):
+            write("RESET: Dimension " + namespace + ":" + newID + " had its POI files deleted")
+            shutil.rmtree(os.path.join(folder + "/" + dID + "/poi"))
+        resetDimensions(folder + "/" + dID, namespace, newID)
 
 WorldsPath= ""
 ZipsPath= ""
@@ -53,7 +94,7 @@ if os.path.exists(executionPath + "paths.txt"):
         i += 1
     paths.close()
 if ZipsPath == "":
-    write("Please provide the path where the builds should be created (type \"here\" if it's the same folder as where this program is)", False)
+    write("Please provide the path where the builds should be created (type \"here\" if it's the same folder as where this program is)")
     while ZipsPath == "":
         selected=input().replace("\\", "/")
         if selected.lower() == "here":
@@ -63,10 +104,10 @@ if ZipsPath == "":
             if os.path.isdir(os.path.join(selected)):
                 ZipsPath = selected
             else:
-                write("That's not an existing folder", False)
+                write("That's not an existing folder")
 if ZipsPath.endswith("/") == False: ZipsPath = ZipsPath + "/"
 if WorldsPath == "":
-    write("Please provide the path where the worlds are all located in their github repository state (type \"here\" if it's the same folder as where this program is)", False)
+    write("Please provide the path where the worlds are all located in their github repository state (type \"here\" if it's the same folder as where this program is)")
     while WorldsPath == "":
         selected=input().replace("\\", "/")
         if selected.lower() == "here":
@@ -76,23 +117,23 @@ if WorldsPath == "":
             if os.path.isdir(os.path.join(selected)):
                 WorldsPath = selected
             else:
-                write("That's not an existing folder", False)
+                write("That's not an existing folder")
 if WorldsPath.endswith("/") == False: WorldsPath = WorldsPath + "/"
 paths = open(executionPath + "paths.txt", "w")
 paths.write("builds=" + ZipsPath + "\nworlds=" + WorldsPath)
 paths.close()
-write("File path where builds get created: " + ZipsPath[slice(0,-1)], False)
-write("File path where worlds get searched for: " + WorldsPath[slice(0,-1)], False)
-write("You can also find the logs and a file to modify the above paths here: " + executionPath[slice(0,-1)], False)
+write("File path where builds get created: " + ZipsPath[slice(0,-1)])
+write("File path where worlds get searched for: " + WorldsPath[slice(0,-1)])
+write("You can also find the logs and a file to modify the above paths here: " + executionPath[slice(0,-1)])
 print("")
 
 while True:
-    write("What world do you wish to build? (Type \"!\" to close program)", False)
+    write("What world do you wish to build? (Type \"!\" to close program)")
     validMaps = ""
     for subfolder in [name for name in os.listdir(WorldsPath) if os.path.isdir(os.path.join(WorldsPath, name)) if os.path.isdir(os.path.join(WorldsPath, name, name)) if os.path.isfile(os.path.join(WorldsPath, name, ".gitignore"))]:
         if validMaps == "": validMaps = subfolder
         else: validMaps = validMaps + ", " + subfolder
-    write("Valid worlds: " + validMaps, False)
+    write("Valid worlds: " + validMaps)
     selected=input().lower().replace("'", "").replace(":", "")
     verify = "u"
     map = ""
@@ -123,14 +164,14 @@ while True:
                     map = subfolder
                     if mapSet == 2 or mapSet == 3: mapSet = 3
                     else: mapSet = 2
-        if mapSet == 0: write("Matched no world", False)
+        if mapSet == 0: write("Matched no world")
         elif mapSet == 3:
             map = ""
-            write("Matched several worlds, please be more specific", False)
+            write("Matched several worlds, please be more specific")
 
     if (map != ""):
         path = WorldsPath + map + "/"
-        write("World set to " + map + ".", False)
+        write("World set to " + map + ".")
         dimensionIDs = []
         
         if os.path.isdir(os.path.join(path + map + "/datapacks/MEDACORP/data")):
@@ -153,29 +194,29 @@ while True:
         
         while True:
             print("")
-            write("What would you like to do? Type one of the following:", False)
-            write("* \"stop\"", False)
-            write("* \"rules\"", False)
+            write("What would you like to do? Type one of the following:")
+            write("* \"stop\"")
+            write("* \"rules\"")
             if verifySucceeded == False: 
-                write("* \"verify\"", False)
-                write("* \"reset\"", False)
-            if alreadyBuild == False: write("* \"build\"", False)
+                write("* \"verify\"")
+                write("* \"reset\"")
+            if alreadyBuild == False: write("* \"build\"")
             selected = input().lower()
             if selected == "stop":
-                write("Aborting", False)
+                write("Stopped checking " + map)
                 break
             elif selected == "rules":
-                write("Rules:", False)
-                write("* Game rule sendCommandFeedback set to false", False)
-                write("* No player data remaining", False)
-                write("* No save progress remaining", False)
-                write("* No additional data packs enabled", False)
-                write("* No missing pack.mcmeta-s", False)
+                write("Rules:")
+                write("* Game rule sendCommandFeedback set to false")
+                write("* No player data remaining")
+                write("* No save progress remaining")
+                write("* No additional data packs enabled")
+                write("* No missing pack.mcmeta-s")
                 if useNether == False: 
-                    write("* No Nether data remaining", False)
+                    write("* No Nether data remaining")
                 if useEnd == False: 
-                    write("* No End data remaining", False)
-                if len(dimensionIDs) == 1: write("* 1 custom dimension: " + str(dimensionIDs[0]), False)
+                    write("* No End data remaining")
+                if len(dimensionIDs) == 1: write("* 1 custom dimension: " + str(dimensionIDs[0]))
                 else: 
                     tempString = ""
                     first = True
@@ -185,39 +226,39 @@ while True:
                             first = False
                         else:
                             tempString = tempString + ", " + dimension
-                    write("* " + str(len(dimensionIDs)) + " custom dimensions: " + tempString, False)
+                    write("* " + str(len(dimensionIDs)) + " custom dimensions: " + tempString)
             elif selected == "verify" and verifySucceeded == False:
                 succeed = True
-                write("Running verification", False)
+                write("Running verification")
 
                 #Check level.dat
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
                 for tag in nbtfile["Data"]["GameRules"].tags:
                     if tag.name == "sendCommandFeedback" and tag.value == "true":
-                        write("VERIFY: Game rule sendCommandFeedback is set to true", False)
+                        write("VERIFY: Game rule sendCommandFeedback is set to true")
                         succeed = False
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "Player":
-                        write("VERIFY: Player data is present in level.dat", False)
+                        write("VERIFY: Player data is present in level.dat")
                         succeed = False
                 tagCount = 0
                 for tag in nbtfile["Data"]["DataPacks"]["Enabled"].tags:
                     tagCount += 1
                 if tagCount != 2:
-                    write("VERIFY: Extra data packs are enabled", False)
+                    write("VERIFY: Extra data packs are enabled")
                     succeed = False
                 tagCount = 0
                 for tag in nbtfile["Data"]["CustomBossEvents"].tags:
                     tagCount += 1
                 if tagCount != 0:
-                    write("VERIFY: Custom boss bars are stored", False)
+                    write("VERIFY: Custom boss bars are stored")
                     succeed = False
                 tagCount = 0
                 for tag in nbtfile["Data"]["WorldGenSettings"]["dimensions"].tags:
                     if tag.name != "minecraft:overworld" and tag.name != "minecraft:the_nether" and tag.name != "minecraft:the_end": tagCount += 1
                 if tagCount != len(dimensionIDs):
-                    write("VERIFY: Dimension count is incorrect", False)
+                    write("VERIFY: Dimension count is incorrect")
                     succeed = False
                 
                 #Check official add-ons
@@ -226,108 +267,96 @@ while True:
                     for addon in officialAddons:
                         addonName = addon.replace(" add-on","")
                         if os.path.isfile(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta") == False:
-                            write("VERIFY: " + addon + " is missing its pack.mcmeta", False)
+                            write("VERIFY: " + addon + " is missing its pack.mcmeta")
                             succeed = False
                 
                 #Check save data
                 if os.path.isfile(os.path.join(path + map + "/session.lock")):
-                    write("VERIFY: Level session.lock is present", False)
+                    write("VERIFY: Level session.lock is present")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/level.dat_old")):
-                    write("VERIFY: Backup level.dat is present", False)
+                    write("VERIFY: Backup level.dat is present")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/generated")):
-                    write("VERIFY: Unsaved structure files are present", False)
+                    write("VERIFY: Unsaved structure files are present")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/playerdata")):
-                    write("VERIFY: Player data is still in world data", False)
+                    write("VERIFY: Player data is still in world data")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/stats")):
-                    write("VERIFY: Statistics data is still in world data", False)
+                    write("VERIFY: Statistics data is still in world data")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/advancements")):
-                    write("VERIFY: Advancement data is still in world data", False)
+                    write("VERIFY: Advancement data is still in world data")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/random_sequences.dat")):
-                    write("VERIFY: Random sequence data is still in world data", False)
+                    write("VERIFY: Random sequence data is still in world data")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")):
-                    write("VERIFY: Scoreboard data is still in world data", False)
+                    write("VERIFY: Scoreboard data is still in world data")
                     succeed = False
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
                         fileName = file.removeprefix("command_storage_").removesuffix(".dat")
-                        write("VERIFY: Command storage \"" + fileName + "\" is still in world data", False)
+                        write("VERIFY: Command storage \"" + fileName + "\" is still in world data")
                         succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/chunks.dat")):
-                    write("VERIFY: Dimension minecraft:overworld has forceloaded chunks", False)
+                    write("VERIFY: Dimension minecraft:overworld has forceloaded chunks")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/raids.dat")):
-                    write("VERIFY: Dimension minecraft:overworld has raids", False)
+                    write("VERIFY: Dimension minecraft:overworld has raids")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/entities")):
-                    write("VERIFY: Dimension minecraft:overworld has entity files", False)
+                    write("VERIFY: Dimension minecraft:overworld has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/poi")):
-                    write("VERIFY: Dimension minecraft:overworld has POI files", False)
+                    write("VERIFY: Dimension minecraft:overworld has POI files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1")) and useNether == False:
-                    write("VERIFY: Dimension minecraft:the_nether has files", False)
+                    write("VERIFY: Dimension minecraft:the_nether has files")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/chunks.dat")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has forceloaded chunks", False)
+                    write("VERIFY: Dimension minecraft:the_nether has forceloaded chunks")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/raids.dat")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has raids", False)
+                    write("VERIFY: Dimension minecraft:the_nether has raids")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/entities")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has entity files", False)
+                    write("VERIFY: Dimension minecraft:the_nether has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/poi")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has POI files", False)
+                    write("VERIFY: Dimension minecraft:the_nether has POI files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1")) and useEnd == False:
-                    write("VERIFY: Dimension minecraft:the_end has files", False)
+                    write("VERIFY: Dimension minecraft:the_end has files")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/chunks.dat")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has forceloaded chunks", False)
+                    write("VERIFY: Dimension minecraft:the_end has forceloaded chunks")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/raids.dat")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has raids", False)
+                    write("VERIFY: Dimension minecraft:the_end has raids")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1/entities")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has entity files", False)
+                    write("VERIFY: Dimension minecraft:the_end has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1/poi")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has POI files", False)
+                    write("VERIFY: Dimension minecraft:the_end has POI files")
                     succeed = False
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
-                    #This needs to be recursive until it runs out of folders; all folders with a region subfolder are dimensions (Fix #1)
-                    for dID in [name for name in os.listdir(path + map + "/dimensions/" + d) if os.path.isdir(os.path.join(path + map + "/dimensions/" + d, name))]:
-                        if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/chunks.dat")):
-                            write("VERIFY: Dimension " + d + ":" + dID + " has forceloaded chunks", False)
-                            succeed = False
-                        if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/raids.dat")):
-                            write("VERIFY: Dimension " + d + ":" + dID + " has raids", False)
-                            succeed = False
-                        if os.path.isdir(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/entities")):
-                            write("VERIFY: Dimension " + d + ":" + dID + " has entity files", False)
-                            succeed = False
-                        if os.path.isdir(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/poi")):
-                            write("VERIFY: Dimension " + d + ":" + dID + " has POI files", False)
-                            succeed = False
+                    subSucceed = verifyDimensions(path + map + "/dimensions/" + d, d, "")
+                    if (subSucceed == False): succeed = False
                 if succeed:
-                    write("VERIFY: Map is properly reset", False)
+                    write("VERIFY: Map is properly reset")
                     verifySucceeded = True
                 else:
-                    write("VERIFY: Map is not reset", False)
+                    write("VERIFY: Map is not reset")
             elif selected == "verify" and verifySucceeded:
-                write("Verify already confirmed the map is reset", False)
+                write("Verify already confirmed the map is reset")
             elif selected == "reset" and verifySucceeded == False:
                 succeed = True
                 structureDelete = False
                 missingPackMcmeta = False
-                write("Running reset", False)
+                write("Running reset")
 
                 #Check level.dat
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
@@ -336,18 +365,18 @@ while True:
                 for tag in nbtfile["Data"]["GameRules"].tags:
                     if tag.name == "sendCommandFeedback" and tag.value == "true":
                         tag.value = "false"
-                        write("RESET: Game rule sendCommandFeedback set to false", False)
+                        write("RESET: Game rule sendCommandFeedback set to false")
                         modify = True
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "Player": 
-                        write("RESET: Deleted player data in level.dat", False)
+                        write("RESET: Deleted player data in level.dat")
                         del nbtfile["Data"]["Player"]
                         modify = True
                 tagCount = 0
                 for tag in nbtfile["Data"]["DataPacks"]["Enabled"].tags:
                     tagCount += 1
                 if tagCount != 2:
-                    write("RESET: Deleted extra enabled data packs", False)
+                    write("RESET: Deleted extra enabled data packs")
                     del nbtfile["Data"]["DataPacks"]["Enabled"]
                     endabledList = nbt.TAG_List(name="Enabled",type=nbt.TAG_String)
                     endabledList.tags.append(nbt.TAG_String(value="vanilla"))
@@ -358,7 +387,7 @@ while True:
                 for tag in nbtfile["Data"]["CustomBossEvents"].tags:
                     tagCount += 1
                 if tagCount != 0:
-                    write("RESET: Deleted custom boss bars", False)
+                    write("RESET: Deleted custom boss bars")
                     del nbtfile["Data"]["CustomBossEvents"]
                     bossBars = nbt.TAG_Compound(name="CustomBossEvents")
                     nbtfile["Data"].tags.append(bossBars)
@@ -370,7 +399,7 @@ while True:
                         dimensionList.tags.append(tag)
                         if tag.name in dimensionIDs: dimensionsFound.append(tag.name)
                     else:
-                        write("RESET: Dimension \"" + tag.name + "\" has been deleted from generation data", False)
+                        write("RESET: Dimension \"" + tag.name + "\" has been deleted from generation data")
                         modify = True
                 del nbtfile["Data"]["WorldGenSettings"]["dimensions"]
                 nbtfile["Data"]["WorldGenSettings"].tags.append(dimensionList)
@@ -381,8 +410,8 @@ while True:
                         for foundDimension in dimensionsFound:
                             if dimension == foundDimension: missing = False
                         if missing: 
-                            write("RESET ERROR: Dimesnion " + dimension + " is missing from generation data", False)
-                            succeed = false
+                            write("RESET ERROR: Dimension " + dimension + " is missing from generation data")
+                            succeed = False
                             missingDimension = True
                 if modify: nbtfile.write_file(path + map + "/level.dat")
                 
@@ -396,20 +425,20 @@ while True:
                             foundMcmeta = False
                             for file in [name for name in os.listdir(path + "Official add-ons/" + addon + "/" + addonName) if os.path.isfile(os.path.join(path + "Official add-ons/" + addon + "/" + addonName, name))]:
                                 if file.endswith(".mcmeta"):
-                                    write("RESET: " + addon + "'s \"" + file + "\" renamed to \"pack.mcmeta\"", False)
+                                    write("RESET: " + addon + "'s \"" + file + "\" renamed to \"pack.mcmeta\"")
                                     os.rename(os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/" + file), os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta"))
                                     foundMcmeta = True
                         if foundMcmeta == False: 
-                            write("RESET ERROR: " + addon + " is missing its pack.mcmeta; this needs manual fixing", False)
+                            write("RESET ERROR: " + addon + " is missing its pack.mcmeta; this needs manual fixing")
                             succeed = False
                             missingPackMcmeta = True
                 
                 #Check save data
                 if os.path.isfile(os.path.join(path + map + "/session.lock")):
-                    write("RESET: Level session.lock deleted", False)
+                    write("RESET: Level session.lock deleted")
                     os.remove(os.path.join(path + map + "/session.lock"))
                 if os.path.isfile(os.path.join(path + map + "/level.dat_old")):
-                    write("RESET: Backup level.dat deleted", False)
+                    write("RESET: Backup level.dat deleted")
                     os.remove(os.path.join(path + map + "/level.dat_old"))
                 if os.path.isdir(os.path.join(path + map + "/generated")):
                     for folder_name, sub_folders, file_names in os.walk(path + map + "/generated"):
@@ -419,139 +448,126 @@ while True:
                             file_path = file_path.replace(path + map + "/generated/", "")
                             file_path = file_path.replace("/structures/","/structure/")
                             if os.path.isdir(os.path.join(path + map + "/datapacks/MEDACORP/data/" + file_path)) == False and subfolder != "structures":
-                                write(file_path, True)
+                                write("RESET: Created directory \"" + map + "/datapacks/MEDACORP/data/" + file_path + "\"", True)
                                 os.makedirs(os.path.join(path + map + "/datapacks/MEDACORP/data/" + file_path))
                         for filename in file_names:
                             file_path = os.path.join(folder_name, filename)
                             file_path = file_path.replace("\\","/")
                             file_path = file_path.replace(path + map + "/generated/", "")
                             if os.path.isfile(os.path.join(path + map + "/datapacks/MEDACORP/data/" + file_path.replace("/structures/","/structure/"))):
-                                write("RESET ERROR: Generated file \"" + file_path + "\" cannot be moved to \"MEDACORP\" data pack because the file already exists", False)
+                                write("RESET ERROR: Generated file \"" + file_path + "\" cannot be moved to \"MEDACORP\" data pack because the file already exists")
                                 structureDelete = True
                                 succeed = False
                             else:
-                                write("RESET: Generated file \"" + file_path + "\" moved to \"MEDACORP\" data pack", False)
+                                write("RESET: Generated file \"" + file_path + "\" moved to \"MEDACORP\" data pack")
                                 os.rename(os.path.join(path + map + "/generated/" + file_path), os.path.join(path + map + "/datapacks/MEDACORP/data/" + file_path.replace("/structures/","/structure/")))
                     if structureDelete == False:
                         shutil.rmtree(os.path.join(path + map + "/generated"))
                 if os.path.isdir(os.path.join(path + map + "/playerdata")):
-                    write("RESET: Player data has been deleted", False)
+                    write("RESET: Player data has been deleted")
                     shutil.rmtree(os.path.join(path + map + "/playerdata"))
                 if os.path.isdir(os.path.join(path + map + "/stats")):
-                    write("RESET: Statistics data has been deleted", False)
+                    write("RESET: Statistics data has been deleted")
                     shutil.rmtree(os.path.join(path + map + "/stats"))
                 if os.path.isdir(os.path.join(path + map + "/advancements")):
-                    write("RESET: Advancement data has been deleted", False)
+                    write("RESET: Advancement data has been deleted")
                     shutil.rmtree(os.path.join(path + map + "/advancements"))
                 if os.path.isfile(os.path.join(path + map + "/data/random_sequences.dat")):
-                    write("RESET: Random sequence data has been deleted", False)
+                    write("RESET: Random sequence data has been deleted")
                     os.remove(os.path.join(path + map + "/data/random_sequences.dat"))
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")):
-                    write("RESET: Scoreboard data has been deleted", False)
+                    write("RESET: Scoreboard data has been deleted")
                     os.remove(os.path.join(path + map + "/data/scoreboard.dat"))
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
                         fileName = file.removeprefix("command_storage_").removesuffix(".dat")
-                        write("RESET: Command storage \"" + fileName + "\" has been deleted", False)
+                        write("RESET: Command storage \"" + fileName + "\" has been deleted")
                         os.remove(os.path.join(path + map + "/data/" + file))
                 if os.path.isfile(os.path.join(path + map + "/data/chunks.dat")):
-                    write("RESET: Dimension minecraft:overworld had its forceloaded chunks deleted", False)
+                    write("RESET: Dimension minecraft:overworld had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/data/raids.dat")):
-                    write("RESET: Dimension minecraft:overworld had its raids deleted", False)
+                    write("RESET: Dimension minecraft:overworld had its raids deleted")
                     os.remove(os.path.join(path + map + "/data/raids.dat"))
                 if os.path.isdir(os.path.join(path + map + "/entities")):
-                    write("RESET: Dimension minecraft:overworld had its entity files deleted", False)
+                    write("RESET: Dimension minecraft:overworld had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/entities"))
                 if os.path.isdir(os.path.join(path + map + "/poi")):
-                    write("RESET: Dimension minecraft:overworld had its POI files deleted", False)
+                    write("RESET: Dimension minecraft:overworld had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/poi"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1")) and useNether == False:
-                    write("RESET: Dimension minecraft:the_nether ad its files deleted", False)
+                    write("RESET: Dimension minecraft:the_nether ad its files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1"))
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/chunks.dat")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its forceloaded chunks deleted", False)
+                    write("RESET: Dimension minecraft:the_nether had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/DIM-1/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/raids.dat")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its raids deleted", False)
+                    write("RESET: Dimension minecraft:the_nether had its raids deleted")
                     os.remove(os.path.join(path + map + "/DIM-1/data/raids.dat"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/entities")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its entity files deleted", False)
+                    write("RESET: Dimension minecraft:the_nether had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1/entities"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/poi")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its POI files deleted", False)
+                    write("RESET: Dimension minecraft:the_nether had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1/poi"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1")) and useEnd == False:
-                    write("RESET: Dimension minecraft:the_end had its files deleted", False)
+                    write("RESET: Dimension minecraft:the_end had its files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1"))
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/chunks.dat")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its forceloaded chunks deleted", False)
+                    write("RESET: Dimension minecraft:the_end had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/DIM1/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/raids.dat")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its raids deleted", False)
+                    write("RESET: Dimension minecraft:the_end had its raids deleted")
                     os.remove(os.path.join(path + map + "/DIM1/data/raids.dat"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1/entities")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its entity files deleted", False)
+                    write("RESET: Dimension minecraft:the_end had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1/entities"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1/poi")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its POI files deleted", False)
+                    write("RESET: Dimension minecraft:the_end had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1/poi"))
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
-                    #This needs to be recursive until it runs out of folders; all folders with a region subfolder are dimensions (Fix #1)
-                    for dID in [name for name in os.listdir(path + map + "/dimensions/" + d) if os.path.isdir(os.path.join(path + map + "/dimensions/" + d, name))]:
-                        if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/chunks.dat")):
-                            write("RESET: Dimension " + d + ":" + dID + " had its forceloaded chunks deleted", False)
-                            os.remove(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/chunks.dat"))
-                        if os.path.isfile(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/raids.dat")):
-                            write("RESET: Dimension " + d + ":" + dID + " had its raids deleted", False)
-                            os.remove(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/data/raids.dat"))
-                        if os.path.isdir(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/entities")):
-                            write("RESET: Dimension " + d + ":" + dID + " had its entity files deleted", False)
-                            shutil.rmtree(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/entities"))
-                        if os.path.isdir(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/poi")):
-                            write("RESET: Dimension " + d + ":" + dID + " had its POI files deleted", False)
-                            shutil.rmtree(os.path.join(path + map + "/dimensions/" + d + "/" + dID + "/poi"))
+                    resetDimensions(path + map + "/dimensions/" + d, d, "")
                 if succeed:
-                    write("RESET: Map is properly reset", False)
+                    write("RESET: Map is properly reset")
                     verifySucceeded = True
                 else:
-                    write("RESET: Map is not fully reset, some manual work is still needed", False)
-                    if missingDimension: write("RESET: Some dimensions are missing generation data", False)
-                    if missingPackMcmeta: write("RESET: Some official add-ons are missing their pack.mcmeta", False)
-                    if structureDelete: write("RESET: Some structure files couldn't be moved to MEDACORP data pack", False)
+                    write("RESET: Map is not fully reset, some manual work is still needed")
+                    if missingDimension: write("RESET: Some dimensions are missing generation data")
+                    if missingPackMcmeta: write("RESET: Some official add-ons are missing their pack.mcmeta")
+                    if structureDelete: write("RESET: Some structure files couldn't be moved to MEDACORP data pack")
                     if structureDelete:
                         print()
-                        write("RESET: Do you want to force-delete the unsaved structure files? (Type \"y\" or \"n\")", False)
+                        write("RESET: Do you want to force-delete the unsaved structure files? (Type \"y\" or \"n\")")
                         verify = "u"
                         while verify == "u":
                             verify = readchar.readkey()
                             if verify != "n" and verify != "y":
                                 verify = "u"
                             elif verify == "y":
-                                write("RESET: Deleted unsaved structure files", False)
+                                write("RESET: Deleted unsaved structure files")
                                 shutil.rmtree(os.path.join(path + map + "/generated"))
                                 structureDelete = False
                             elif verify == "n":
-                                write("RESET: Left unsaved structure files alone", False)
+                                write("RESET: Left unsaved structure files alone")
                     if missingPackMcmeta == False and structureDelete == False and missingDimension == False:
                         verifySucceeded = True
             elif selected == "reset" and verifySucceeded:
-                write("Reset already reset the map", False)
+                write("Reset already reset the map")
             elif selected == "build" and alreadyBuild == False:
-                write("Running download building", False)
+                write("Running download building")
                 continueBuilding = "y"
                 if verifySucceeded == False:
-                    write("BUILD: Please verify or reset the map first; if it's not properly reset, building is not allowed", False)
+                    write("BUILD: Please verify or reset the map first; if it's not properly reset, building is not allowed")
                     continueBuilding = "n"
                 if continueBuilding == "y":
-                    write("BUILD: What is the version number?", False)
+                    write("BUILD: What is the version number?")
                     versionNumber = input()
                     zipName = map + " (v" + versionNumber + ").zip"
                     print("")
                     if os.path.exists(ZipsPath + zipName):
-                        write("BUILD: The file \"" + zipName + "\" already exists, building aborted", False)
+                        write("BUILD: The file \"" + zipName + "\" already exists, building aborted")
                     else:
-                        write("BUILD: Creating \"" + zipName + "\", please be patient", False)
+                        write("BUILD: Creating \"" + zipName + "\", please be patient")
                         ignoreFile = open(path + ".gitignore", "r")
                         allowFiles = []
                         disallowFiles = []
@@ -601,12 +617,12 @@ while True:
                                         zip_object.write(WorldsPath + map + "/" + file_path, file_path)
                                         write("BUILD: \"" + file_path + "\" added to zip", True)
                         if os.path.exists(ZipsPath + zipName):
-                            write("BUILD: Created \"" + zipName + "\" with " + str(filesIncluded) + " files; " + str(filesExcluded) + " files were excluded", False)
+                            write("BUILD: Created \"" + zipName + "\" with " + str(filesIncluded) + " files; " + str(filesExcluded) + " files were excluded")
                             alreadyBuild = True
                         else:
-                            write("BUILD: The file \"" + zipName + "\" could not be created", False)
+                            write("BUILD: The file \"" + zipName + "\" could not be created")
                 elif continueBuilding == "n":
-                    write("BUILD: Building aborted", False)
+                    write("BUILD: Building aborted")
             elif selected == "build" and alreadyBuild:
-                write("Build was already created", False)
+                write("Build was already created")
     print("")
