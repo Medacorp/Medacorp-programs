@@ -496,7 +496,7 @@ while True:
                     write("RESET: Dimension minecraft:overworld had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/poi"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1")) and useNether == False:
-                    write("RESET: Dimension minecraft:the_nether ad its files deleted")
+                    write("RESET: Dimension minecraft:the_nether had its files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1"))
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/chunks.dat")) and useNether:
                     write("RESET: Dimension minecraft:the_nether had its forceloaded chunks deleted")
