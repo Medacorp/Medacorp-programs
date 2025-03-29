@@ -1,38 +1,8 @@
-import os
-import shutil
-import sys
-import time
+from MEDACORP import *
 import re
 import zlib
-import importlib.metadata
-import subprocess
-from datetime import datetime
 from zipfile import ZIP_DEFLATED, ZipFile
-from contextlib import redirect_stdout
 
-required = {'readchar','NBT'}
-installed = {pkg.metadata['Name'] for pkg in importlib.metadata.distributions()}
-missing = required - installed
-
-if missing:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'])
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing])
-
-import readchar
-from nbt import nbt
-
-def write(string: str, debug: bool | None = False):
-    timeNow = datetime.now()
-    timeFormat = timeNow.strftime("%H:%M:%S")
-    if debug == False: print(string)
-    with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
-        with redirect_stdout(logFile):
-            if debug == False: print("[" + timeFormat + "] " + string)
-            else: print("[" + timeFormat + "] [DEBUGGER] " + string)
-    with open(executionPath + "logs/latest.log", "a") as logFile:
-        with redirect_stdout(logFile):
-            if debug == False: print("[" + timeFormat + "] " + string)
-            else: print("[" + timeFormat + "] [DEBUGGER] " + string)
 def verifyDimensions(folder: str, namespace: str, ID: str) -> bool:
     succeed = True
     for dID in [name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name))]:
@@ -77,20 +47,8 @@ def resetDimensions(folder: str, namespace: str, ID: str):
 
 WorldsPath= ""
 ZipsPath= ""
-executionPath, executionFileName = os.path.split(os.path.abspath(sys.argv[0]))
-executionPath = executionPath.replace("\\", "/") + "/"
-dateNow = datetime.now()
-dateFormat = dateNow.strftime("%Y-%m-%d")
-if os.path.isdir(executionPath + "logs/") == False:
-    os.makedirs(os.path.join(executionPath + "logs/"))
-if os.path.exists(executionPath + "logs/" + dateFormat + ".log"): 
-    with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
-        with redirect_stdout(logFile):
-            print("\n\n")
-if os.path.exists(executionPath + "logs/latest.log"): os.remove(executionPath + "logs/latest.log")
-write("Running \"verify and assemble\" program", True)
-if os.path.exists(executionPath + "paths.txt"):
-    paths = open(executionPath + "paths.txt", "r")
+if os.path.exists(getExecutionPath(True) + "paths.txt"):
+    paths = open(getExecutionPath(True) + "paths.txt", "r")
     i = 0
     while i <= 1:
         line = paths.readline()
@@ -111,7 +69,7 @@ if ZipsPath == "":
     while ZipsPath == "":
         selected=input().replace("\\", "/")
         if selected.lower() == "here":
-            ZipsPath = executionPath
+            ZipsPath = getExecutionPath()
         else:
             if selected.endswith("/"): selected = selected[slice(0,-1)]
             if os.path.isdir(os.path.join(selected)):
@@ -124,7 +82,7 @@ if WorldsPath == "":
     while WorldsPath == "":
         selected=input().replace("\\", "/")
         if selected.lower() == "here":
-            WorldsPath = executionPath
+            WorldsPath = getExecutionPath()
         else:
             if selected.endswith("/"): selected = selected[slice(0,-1)]
             if os.path.isdir(os.path.join(selected)):
@@ -132,67 +90,74 @@ if WorldsPath == "":
             else:
                 write("That's not an existing folder")
 if WorldsPath.endswith("/") == False: WorldsPath = WorldsPath + "/"
-paths = open(executionPath + "paths.txt", "w")
+paths = open(getExecutionPath(True) + "paths.txt", "w")
 paths.write("builds=" + ZipsPath + "\nworlds=" + WorldsPath)
 paths.close()
 write("File path where builds get created: " + ZipsPath[slice(0,-1)])
 write("File path where worlds get searched for: " + WorldsPath[slice(0,-1)])
-write("You can also find the logs and a file to modify the above paths here: " + executionPath[slice(0,-1)])
+write("You can also find the logs and a file to modify the above paths here: " + getExecutionPath())
 print("")
 
 while True:
     write("What world do you wish to build? (Type \"!\" to close program)")
     validMaps = ""
-    for subfolder in [name for name in os.listdir(WorldsPath) if os.path.isdir(os.path.join(WorldsPath, name)) if os.path.isdir(os.path.join(WorldsPath, name, name)) if os.path.isfile(os.path.join(WorldsPath, name, ".gitignore"))]:
-        if validMaps == "": validMaps = subfolder
-        else: validMaps = validMaps + ", " + subfolder
+    for subfolder in [name for name in os.listdir(WorldsPath) if os.path.isfile(os.path.join(WorldsPath, name, ".gitignore"))]:
+        for subfolder2 in [name for name in os.listdir(os.path.join(WorldsPath, subfolder)) if os.path.isfile(os.path.join(WorldsPath, subfolder, name, "level.dat")) if os.path.isdir(os.path.join(WorldsPath, subfolder, name + " Resource Pack")) if os.path.isfile(os.path.join(WorldsPath, subfolder, name + " Resource Pack", "pack.mcmeta"))]:
+            if validMaps == "": validMaps = subfolder2
+            else: validMaps = validMaps + ", " + subfolder2
     write("Valid worlds: " + validMaps)
     selected=input().lower().replace("'", "").replace(":", "")
     verify = "u"
+    rootFolder = ""
     map = ""
     path = ""
     dimensionIDs = []
     useNether = False
     useEnd = False
+    unlocked = False
     verifySucceeded = False
     alreadyBuild = False
     mapSet = 0
     if selected == "!":
         break
     else:
-        for subfolder in [name for name in os.listdir(WorldsPath) if os.path.isdir(os.path.join(WorldsPath, name)) if os.path.isdir(os.path.join(WorldsPath, name, name)) if os.path.isfile(os.path.join(WorldsPath, name, ".gitignore"))]:
-            folder = subfolder.lower().replace("'", "").replace(":", "")
-            words = folder.split(" ")
-            truncated = ""
-            for word in words: truncated = truncated + word[0]
-            if selected == folder or selected == truncated:
-                map = subfolder
-                mapSet = 1
-            if mapSet != 1:
-                if re.search(".*" + selected + ".*", folder):
-                    map = subfolder
-                    if mapSet == 2 or mapSet == 3: mapSet = 3
-                    else: mapSet = 2
-                elif re.search(".*" + selected + ".*", truncated):
-                    map = subfolder
-                    if mapSet == 2 or mapSet == 3: mapSet = 3
-                    else: mapSet = 2
+        for subfolder in [name for name in os.listdir(WorldsPath) if os.path.isfile(os.path.join(WorldsPath, name, ".gitignore"))]:
+            for subfolder2 in [name for name in os.listdir(os.path.join(WorldsPath, subfolder)) if os.path.isfile(os.path.join(WorldsPath, subfolder, name, "level.dat")) if os.path.isdir(os.path.join(WorldsPath, subfolder, name + " Resource Pack")) if os.path.isfile(os.path.join(WorldsPath, subfolder, name + " Resource Pack", "pack.mcmeta"))]:
+                folder = subfolder2.lower().replace("'", "").replace(":", "").replace("-", "")
+                words = folder.split(" ")
+                truncated = ""
+                for word in words: truncated = truncated + word[0]
+                if selected == folder or selected == truncated:
+                    rootFolder = subfolder
+                    map = subfolder2
+                    mapSet = 1
+                if mapSet != 1:
+                    if re.search(".*" + selected + ".*", folder):
+                        rootFolder = subfolder
+                        map = subfolder2
+                        if mapSet == 2 or mapSet == 3: mapSet = 3
+                        else: mapSet = 2
+                    elif re.search(".*" + selected + ".*", truncated):
+                        rootFolder = subfolder
+                        map = subfolder2
+                        if mapSet == 2 or mapSet == 3: mapSet = 3
+                        else: mapSet = 2
         if mapSet == 0: write("Matched no world")
         elif mapSet == 3:
             map = ""
             write("Matched several worlds, please be more specific")
 
     if (map != ""):
-        path = WorldsPath + map + "/"
+        path = WorldsPath + rootFolder + "/"
         write("World set to " + map + ".")
         dimensionIDs = []
         
         if os.path.isdir(os.path.join(path + map + "/datapacks/MEDACORP/data")):
             for subfolder in [name for name in os.listdir(os.path.join(path + map + "/datapacks/MEDACORP/data")) if os.path.isdir(os.path.join(path + map + "/datapacks/MEDACORP/data/" + name)) if os.path.isdir(os.path.join(path + map + "/datapacks/MEDACORP/data/" + name + "/dimension"))]:
-                for folder_name2, sub_folders2, file_names2 in os.walk(path + map + "/datapacks/MEDACORP/data/" + subfolder + "/dimension"):
+                for folder_name, sub_folders2, file_names2 in os.walk(path + map + "/datapacks/MEDACORP/data/" + subfolder + "/dimension"):
                     for filename in file_names2:
                         if filename.endswith(".json"):
-                            file_path = os.path.join(folder_name2)
+                            file_path = os.path.join(folder_name)
                             file_path = file_path.replace("\\","/")
                             file_path = file_path.replace(path + map + "/datapacks/MEDACORP/data/" + subfolder + "/dimension", "")
                             if file_path.startswith("/"): file_path = file_path[slice(1,-1)] + file_path[-1]
@@ -210,7 +175,7 @@ while True:
             write("What would you like to do? Type one of the following:")
             write("* \"stop\"")
             write("* \"rules\"")
-            write("* \"unlock\"")
+            if unlocked == False: write("* \"unlock\"")
             if verifySucceeded == False: 
                 write("* \"verify\"")
                 write("* \"reset\"")
@@ -372,24 +337,26 @@ while True:
                 write("Verify already confirmed the map is reset")
             elif selected == "unlock":
                 write("Running unlock")
-                nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
-                nbtfile.name = 'level'
-                modify = False
-                for tag in nbtfile["Data"]["GameRules"].tags:
-                    if tag.name == "sendCommandFeedback" and tag.value == "false":
-                        tag.value = "true"
-                        write("UNLOCK: Game rule sendCommandFeedback set to true")
-                        modify = True
-                for tag in nbtfile["Data"].tags:
-                    if tag.name == "allowCommands" and tag.value == 0:
-                        write("UNLOCK: Enabled cheats")
-                        tag.value = 1
-                        modify = True
+                if unlocked == False:
+                    nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
+                    nbtfile.name = 'level'
+                    modify = False
+                    for tag in nbtfile["Data"]["GameRules"].tags:
+                        if tag.name == "sendCommandFeedback" and tag.value == "false":
+                            tag.value = "true"
+                            write("UNLOCK: Game rule sendCommandFeedback set to true")
+                            modify = True
+                    for tag in nbtfile["Data"].tags:
+                        if tag.name == "allowCommands" and tag.value == 0:
+                            write("UNLOCK: Enabled cheats")
+                            tag.value = 1
+                            modify = True
                 if modify: 
                     nbtfile.write_file(path + map + "/level.dat")
                     write("UNLOCK: Unlocked map for development")
                 else:
                     write("UNLOCK: Map was already unlocked")
+                unlocked = True
                 verifySucceeded = False
             elif selected == "reset" and verifySucceeded == False:
                 succeed = True
@@ -594,6 +561,7 @@ while True:
                                 write("RESET: Left unsaved structure files alone")
                     if missingPackMcmeta == False and structureDelete == False and missingDimension == False:
                         verifySucceeded = True
+                unlocked = False
             elif selected == "reset" and verifySucceeded:
                 write("Reset already reset the map")
             elif selected == "build" and alreadyBuild == False:
@@ -640,11 +608,11 @@ while True:
                         filesIncluded = 0
                         filesExcluded = 0
                         with ZipFile(ZipsPath + zipName, "w", compression=ZIP_DEFLATED) as zip_object:
-                            for folder_name, sub_folders, file_names in os.walk(WorldsPath + map):
+                            for folder_name, sub_folders, file_names in os.walk(WorldsPath + rootFolder):
                                 for filename in file_names:
                                     file_path = os.path.join(folder_name, filename)
                                     file_path = file_path.replace("\\","/")
-                                    file_path = file_path.replace(WorldsPath + map, "")
+                                    file_path = file_path.replace(WorldsPath + rootFolder, "")
                                     allowed = True
                                     for disallow in disallowFiles:
                                         if re.search(disallow, file_path):
@@ -657,7 +625,7 @@ while True:
                                             else: 
                                                 filesIncluded += 1
                                     if allowed:
-                                        zip_object.write(WorldsPath + map + "/" + file_path, file_path)
+                                        zip_object.write(WorldsPath + rootFolder + "/" + file_path, file_path)
                                         write("BUILD: \"" + file_path + "\" added to zip", True)
                         if os.path.exists(ZipsPath + zipName):
                             write("BUILD: Created \"" + zipName + "\" with " + str(filesIncluded) + " files; " + str(filesExcluded) + " files were excluded")

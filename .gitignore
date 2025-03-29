@@ -1,4 +1,5 @@
-/logs/
+/__pycache__/
 /animator settings/
-paths.txt
-* (v*).zip
+/logs/
+/paths.txt
+/* (v*).zip

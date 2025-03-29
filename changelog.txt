@@ -1,0 +1,4 @@
+3-29-2025:
+* Shared python functions and imports are now in a shared file
+* Python program libraries that need to be installed are now automatically installed when running the program (and pip updated)
+* "verify and assemble" world detetion no longer requires root folder name to match world name, as long as a gitignore, a world, and a resource pack exist, it'll succeed

@@ -1,48 +1,7 @@
+from MEDACORP import *
 import math
-import os
-import sys
-import importlib.metadata
-import subprocess
-from contextlib import redirect_stdout
-from datetime import datetime
 
-required = {'readchar'}
-installed = {pkg.metadata['Name'] for pkg in importlib.metadata.distributions()}
-missing = required - installed
-
-if missing:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'])
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing])
-
-
-import readchar
-
-def write(string: str, debug: bool | None = False):
-    timeNow = datetime.now()
-    timeFormat = timeNow.strftime("%H:%M:%S")
-    if debug == False: print(string)
-    with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
-        with redirect_stdout(logFile):
-            if debug == False: print("[" + timeFormat + "] " + string)
-            else: print("[" + timeFormat + "] [DEBUGGER] " + string)
-    with open(executionPath + "logs/latest.log", "a") as logFile:
-        with redirect_stdout(logFile):
-            if debug == False: print("[" + timeFormat + "] " + string)
-            else: print("[" + timeFormat + "] [DEBUGGER] " + string)
-
-executionPath, executionFileName = os.path.split(os.path.abspath(sys.argv[0]))
-executionPath = executionPath.replace("\\", "/") + "/"
-dateNow = datetime.now()
-dateFormat = dateNow.strftime("%Y-%m-%d")
-if os.path.isdir(executionPath + "logs/") == False:
-	os.makedirs(os.path.join(executionPath + "logs/"))
-if os.path.exists(executionPath + "logs/" + dateFormat + ".log"): 
-    with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
-        with redirect_stdout(logFile):
-            print("\n\n")
-if os.path.exists(executionPath + "logs/latest.log"): os.remove(executionPath + "logs/latest.log")
-write("Running \"euler to transformation rotation\" program", True)
-write("You can find the logs here: " + executionPath[slice(0,-1)])
+write("You can find the logs here: " + getExecutionPath())
 print("")
 
 while True:
