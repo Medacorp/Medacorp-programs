@@ -4,9 +4,9 @@ import sys
 import time
 import re
 import zlib
-import datetime
 import importlib.metadata
 import subprocess
+from datetime import datetime
 from zipfile import ZIP_DEFLATED, ZipFile
 from contextlib import redirect_stdout
 
