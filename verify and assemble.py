@@ -1,14 +1,25 @@
 import os
 import shutil
 import sys
-import readchar
 import time
 import re
-from nbt import nbt
-from zipfile import ZIP_DEFLATED, ZipFile
 import zlib
+import datetime
+import importlib.metadata
+import subprocess
+from zipfile import ZIP_DEFLATED, ZipFile
 from contextlib import redirect_stdout
-from datetime import datetime
+
+required = {'readchar','nbt'}
+installed = {pkg.metadata['Name'] for pkg in importlib.metadata.distributions()}
+missing = required - installed
+
+if missing:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', 'pip'])
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing])
+
+import readchar
+import nbt
 
 def write(string: str, debug: bool | None = False):
     timeNow = datetime.now()
