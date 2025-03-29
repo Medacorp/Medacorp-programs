@@ -10,7 +10,7 @@ from datetime import datetime
 from zipfile import ZIP_DEFLATED, ZipFile
 from contextlib import redirect_stdout
 
-required = {'readchar','nbt'}
+required = {'readchar','NBT'}
 installed = {pkg.metadata['Name'] for pkg in importlib.metadata.distributions()}
 missing = required - installed
 
@@ -19,7 +19,7 @@ if missing:
     subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing])
 
 import readchar
-import nbt
+from nbt import nbt
 
 def write(string: str, debug: bool | None = False):
     timeNow = datetime.now()
