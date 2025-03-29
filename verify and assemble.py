@@ -82,7 +82,7 @@ executionPath = executionPath.replace("\\", "/") + "/"
 dateNow = datetime.now()
 dateFormat = dateNow.strftime("%Y-%m-%d")
 if os.path.isdir(executionPath + "logs/") == False:
-	os.makedirs(os.path.join(executionPath + "logs/"))
+    os.makedirs(os.path.join(executionPath + "logs/"))
 if os.path.exists(executionPath + "logs/" + dateFormat + ".log"): 
     with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
         with redirect_stdout(logFile):
@@ -210,6 +210,7 @@ while True:
             write("What would you like to do? Type one of the following:")
             write("* \"stop\"")
             write("* \"rules\"")
+            write("* \"unlock\"")
             if verifySucceeded == False: 
                 write("* \"verify\"")
                 write("* \"reset\"")
@@ -221,6 +222,7 @@ while True:
             elif selected == "rules":
                 write("Rules:")
                 write("* Game rule sendCommandFeedback set to false")
+                write("* Cheats disabled")
                 write("* No player data remaining")
                 write("* No save progress remaining")
                 write("* No additional data packs enabled")
@@ -252,6 +254,9 @@ while True:
                         write("VERIFY: Game rule sendCommandFeedback is set to true")
                         succeed = False
                 for tag in nbtfile["Data"].tags:
+                    if tag.name == "allowCommands" and tag.value == 1:
+                        write("VERIFY: Cheats are enabled")
+                        succeed = False
                     if tag.name == "Player":
                         write("VERIFY: Player data is present in level.dat")
                         succeed = False
@@ -365,6 +370,27 @@ while True:
                     write("VERIFY: Map is not reset")
             elif selected == "verify" and verifySucceeded:
                 write("Verify already confirmed the map is reset")
+            elif selected == "unlock":
+                write("Running unlock")
+                nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
+                nbtfile.name = 'level'
+                modify = False
+                for tag in nbtfile["Data"]["GameRules"].tags:
+                    if tag.name == "sendCommandFeedback" and tag.value == "false":
+                        tag.value = "true"
+                        write("UNLOCK: Game rule sendCommandFeedback set to true")
+                        modify = True
+                for tag in nbtfile["Data"].tags:
+                    if tag.name == "allowCommands" and tag.value == 0:
+                        write("UNLOCK: Enabled cheats")
+                        tag.value = 1
+                        modify = True
+                if modify: 
+                    nbtfile.write_file(path + map + "/level.dat")
+                    write("UNLOCK: Unlocked map for development")
+                else:
+                    write("UNLOCK: Map was already unlocked")
+                verifySucceeded = False
             elif selected == "reset" and verifySucceeded == False:
                 succeed = True
                 structureDelete = False
@@ -381,6 +407,10 @@ while True:
                         write("RESET: Game rule sendCommandFeedback set to false")
                         modify = True
                 for tag in nbtfile["Data"].tags:
+                    if tag.name == "allowCommands" and tag.value == 1:
+                        write("RESET: Disabled cheats")
+                        tag.value = 0
+                        modify = True
                     if tag.name == "Player": 
                         write("RESET: Deleted player data in level.dat")
                         del nbtfile["Data"]["Player"]
