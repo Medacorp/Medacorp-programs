@@ -70,6 +70,8 @@ executionPath, executionFileName = os.path.split(os.path.abspath(sys.argv[0]))
 executionPath = executionPath.replace("\\", "/") + "/"
 dateNow = datetime.now()
 dateFormat = dateNow.strftime("%Y-%m-%d")
+if os.path.isdir(executionPath + "logs/") == False:
+	os.makedirs(os.path.join(executionPath + "logs/"))
 if os.path.exists(executionPath + "logs/" + dateFormat + ".log"): 
     with open(executionPath + "logs/" + dateFormat + ".log", "a") as logFile:
         with redirect_stdout(logFile):
