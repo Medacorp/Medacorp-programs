@@ -7,6 +7,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Newtonsoft.Json;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 
 public class Main : MonoBehaviour
@@ -14,6 +15,8 @@ public class Main : MonoBehaviour
     private string executionPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
     private string worldsPath;
     public GameObject worldSelector;
+    private Dictionary<string,string> worldMap = new();
+    private string selectedWorldRoot;
     private string selectedWorld;
     public GameObject addOnSelector;
     private string selectedAddOn;
@@ -21,6 +24,7 @@ public class Main : MonoBehaviour
     private string selectedAnimationGroup;
     private string[] entityID = {"","",""};
     private List<string> validEntities;
+    private MapEntity mapEntity;
     public GameObject animationSelector;
     private string selectedAnimation;
     public GameObject editModelsButton;
@@ -54,16 +58,13 @@ public class Main : MonoBehaviour
     private List<string> createdScoreToggles = new();
     private GameObject selectedModelPart;
     private bool awaitingEntities;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         executionPath = executionPath.Remove(executionPath.Length-53);
         if (!Directory.Exists(executionPath + "animator settings/")) {
             Directory.CreateDirectory(executionPath + "animator settings/");
-        }
-        if (!Directory.Exists(executionPath + "animator settings/models/")) {
-            Directory.CreateDirectory(executionPath + "animator settings/models/");
         }
         if (File.Exists(executionPath + "paths.txt")) {
             foreach (string line in File.ReadLines(executionPath + "paths.txt")) {
@@ -87,9 +88,14 @@ public class Main : MonoBehaviour
             string[] split = folder.Split("/");
             string world = split[split.Length-1];
             string path = worldsPath + world + "/";
-            if (Directory.Exists(path + world)) {
-                dropdown.options.Add(new TMP_Dropdown.OptionData(world));
-            }
+            foreach (string folder2 in Directory.GetDirectories(path)) {
+                split = folder2.Split("/");
+                string world2 = split[split.Length-1];
+                if (File.Exists(path + world2 + "/level.dat") && File.Exists(path + world2 + " Resource Pack/pack.mcmeta")) {
+                    dropdown.options.Add(new TMP_Dropdown.OptionData(world2));
+                    worldMap.Add(world2, world);
+                }
+            } 
         } 
         dropdown.value = 0;
         dropdown.RefreshShownValue();
@@ -99,28 +105,36 @@ public class Main : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (awaitingEntities && validEntities.Count != 0) SetValidEntities();
+        if (awaitingEntities && validEntities.Count != 0 && TextureAtlas.rectangles.Length != 0) SetValidEntities();
+        TextureAtlas.AdvanceAnimations(Time.deltaTime*20);
     }
 
     public void WorldSelected() {
         TMP_Dropdown dropdown = worldSelector.GetComponent<TMP_Dropdown>();
         if (dropdown.value == 0) {
             selectedWorld = null;
+            selectedWorldRoot = null;
             addOnSelector.GetComponent<TMP_Dropdown>().interactable = false;
             addOnSelector.GetComponent<TMP_Dropdown>().value = 0;
         }
         else {
             selectedWorld = dropdown.options[dropdown.value].text;
+            foreach (KeyValuePair<string, string> world in worldMap) {
+                if (world.Key == selectedWorld) {
+                    selectedWorldRoot = world.Value;
+                    break;
+                }
+            }
             addOnSelector.GetComponent<TMP_Dropdown>().interactable = true;
             TMP_Dropdown addOnDropdown = addOnSelector.GetComponent<TMP_Dropdown>();
             addOnDropdown.options.Clear();
             addOnDropdown.options.Add(new TMP_Dropdown.OptionData("Select Add-on"));
             addOnDropdown.value = 0;
             addOnDropdown.RefreshShownValue();
-            foreach (string folder in Directory.GetDirectories(worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/")) {
+            foreach (string folder in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/")) {
                 string[] split = folder.Split("/");
                 string addOn = split[split.Length-1];
-                string path = worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + addOn + "/";
+                string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + addOn + "/";
                 if (Directory.Exists(path + "data")) {
                     addOnSelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(addOn));
                 }
@@ -128,7 +142,7 @@ public class Main : MonoBehaviour
             validEntities = new();
             Thread threadedGetEntities = new Thread(() => GetEntities());
             threadedGetEntities.Start();
-            
+            TextureAtlas.ParseAtlas(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/", executionPath + "animator settings/");
         }
         animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
@@ -136,13 +150,14 @@ public class Main : MonoBehaviour
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         ClearModel();
     }
+
     private void GetEntities() {
         awaitingEntities = true;
         List<string> newValidEntities = new();
-        foreach (string addOn in Directory.GetDirectories(worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/")) {
+        foreach (string addOn in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/")) {
             string[] split = addOn.Split("/");
             string dataPack = split[split.Length-1];
-            string path = worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + dataPack + "/data/";
+            string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + dataPack + "/data/";
             foreach (string folder in Directory.GetDirectories(path)) {
                 string[] split2 = folder.Split("/");
                 string animationNamespace = split2[split2.Length-1];
@@ -181,10 +196,10 @@ public class Main : MonoBehaviour
             if (validEntities.Count != 0) {
                 animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = true;
                 animationGroupDropdown.options.Add(new TMP_Dropdown.OptionData("Select animation group"));
-                foreach (string folder in Directory.GetDirectories(worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/")) {
+                foreach (string folder in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/")) {
                     string[] split = folder.Split("/");
                     string animationNamespace = split[split.Length-1];
-                    string path = worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/" + animationNamespace + "/function/animations/";
+                    string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/" + animationNamespace + "/function/animations/";
                     foreach (string entity in validEntities) {
                         string[] entityID = entity.Split(":");
                         if (Directory.Exists(path + entityID[1])) {
@@ -207,15 +222,15 @@ public class Main : MonoBehaviour
             entityID = selectedAnimationGroup.Split(":");
             string entity = validEntities.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
             entityID = entity.Split(":");
-            GetListOfParts(worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + entityID[2] + "/data/" + entityID[0] + "/function/animations/" + entityID[1] + "/call_part_function.mcfunction",entityID);
+            GetSpawnFunction(entityID);
             TMP_Dropdown animationDropdown = animationSelector.GetComponent<TMP_Dropdown>();
             animationDropdown.options.Clear();
             animationDropdown.options.Add(new TMP_Dropdown.OptionData("Select animation"));
             animationDropdown.options.Add(new TMP_Dropdown.OptionData("New animation"));
-            foreach (string addOnPath in Directory.GetDirectories(worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/")) {
+            foreach (string addOnPath in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/")) {
                 string[] split = addOnPath.Split("/");
                 string addOnNamespace = split[split.Length-1];
-                string path = worldsPath+selectedWorld+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/" + addOnNamespace + "/function/animations/" + entityID[1] + "/";
+                string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/" + addOnNamespace + "/function/animations/" + entityID[1] + "/";
                 if (Directory.Exists(path)) {
                     foreach (string folder in Directory.GetDirectories(path)) {
                         string[] split2 = folder.Split("/");
@@ -230,6 +245,122 @@ public class Main : MonoBehaviour
             animationDropdown.RefreshShownValue();
             editModelsTab.SetActive(false);
         }
+    }
+    private void GetSpawnFunction(string[] ID) {
+        string path = worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/";
+        AnimatorSettings animatorSettings = new();
+        if (File.Exists(executionPath + "animator settings/" + selectedWorld + ".json")) {
+            animatorSettings = JsonConvert.DeserializeObject<AnimatorSettings>(File.ReadAllText(executionPath + "animator settings/" + selectedWorld + ".json"));
+        }
+        string entityNamespace = ID[0];
+        string entityName = ID[1];
+        string spawn_function = "";
+        foreach (KeyValuePair<string, string> function in animatorSettings.spawn_functions) {
+            if (function.Key == entityNamespace + ":" + entityName) {
+                spawn_function = function.Value;
+                animatorSettings.spawn_functions.Remove(function.Key);
+                break;
+            }
+        }
+        if (spawn_function == "" || !File.Exists(path + spawn_function)) {
+            string title = "Select Spawn Function";
+            spawn_function = EditorUtility.OpenFilePanel(title, path, "mcfunction");
+            if (spawn_function.Contains(path)) spawn_function = spawn_function.Replace(path,"");
+            else spawn_function = "";
+        }
+        if (spawn_function != "") {
+            animatorSettings.spawn_functions.Add(entityNamespace + ":" + entityName, spawn_function);
+            using (StreamWriter outputFile = new(Path.Combine(executionPath + "animator settings/" + selectedWorld + ".json")))
+            {
+                outputFile.WriteLine(JsonConvert.SerializeObject(animatorSettings, Formatting.Indented));
+            }
+            ReadSpawnFunction(spawn_function);
+        }
+    }
+    private void ReadSpawnFunction(string spawn_function)
+    {
+        mapEntity = new();
+        foreach (string line in File.ReadLines(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/" + spawn_function))
+        {
+            string item = "";
+            if (line.Contains("summon minecraft:armor_stand"))
+            {
+                MapEntityPart entityPart = new();
+                if (line.Contains("Tags:["))
+                {
+                    string tags = line.Split("Tags:[\"")[1].Split("\"]")[0];
+                    entityPart.tags = tags.Split("\",\"");
+                }
+                if (line.Contains("equipment:{head:{"))
+                {
+                    int brackets = 1;
+                    int characters = 1;
+                    string cutLine = line.Split("equipment:{head:{")[1];
+                    while (brackets != 0)
+                    {
+                        if (cutLine[0] == '{') brackets++;
+                        else if (cutLine[0] == '}') brackets--;
+                        characters++;
+                        cutLine = cutLine.Substring(1);
+                    }
+                    cutLine = line.Split("equipment:{head:")[1];
+                    item = cutLine.Substring(0, characters);
+                }
+                else if (line.Contains("equipment:{mainhand:{"))
+                {
+                    int brackets = 1;
+                    int characters = 1;
+                    string cutLine = line.Split("equipment:{mainhand:{")[1];
+                    while (brackets != 0)
+                    {
+                        if (cutLine[0] == '{') brackets++;
+                        else if (cutLine[0] == '}') brackets--;
+                        characters++;
+                        cutLine = cutLine.Substring(1);
+                    }
+                    cutLine = line.Split("equipment:{mainhand:")[1];
+                    item = cutLine.Substring(0, characters);
+                }
+                if (item != "")
+                {
+                    MinecraftItem minecraftItem = new();
+                    minecraftItem.Parse(item);
+                    entityPart.minecraft_item = minecraftItem;
+                }
+                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
+                mapEntity.model_parts.Add(entityPart);
+            }
+            if (line.Contains("summon minecraft:item_display"))
+            {
+                MapEntityPart entityPart = new();
+                item = "";
+                if (line.Contains("Tags:["))
+                {
+                    string tags = line.Split("Tags:[\"")[1].Split("\"]")[0];
+                    entityPart.tags = tags.Split("\",\"");
+                }
+                if (line.Contains("item:{"))
+                {
+                    int brackets = 1;
+                    int characters = 1;
+                    string cutLine = line.Split("item:{")[1];
+                    while (brackets != 0)
+                    {
+                        if (cutLine[0] == '{') brackets++;
+                        else if (cutLine[0] == '}') brackets--;
+                        characters++;
+                        cutLine = cutLine.Substring(1);
+                    }
+                    cutLine = line.Split("item:")[1];
+                    MinecraftItem minecraftItem = new();
+                    minecraftItem.Parse(cutLine.Substring(0, characters));
+                    entityPart.minecraft_item = minecraftItem;
+                }
+                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
+                mapEntity.model_parts.Add(entityPart);
+            }
+        }
+        MinecraftModel.ParseModels(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
     }
     private void ClearModel() {
         parts = new();
@@ -536,7 +667,7 @@ public class Main : MonoBehaviour
     }
 
     private string SelectModelFile(string part, string variant) {
-        string modelDirectory = worldsPath+selectedWorld+"/";
+        string modelDirectory = worldsPath+selectedWorldRoot+"/";
         if (Directory.Exists(modelDirectory+selectedWorld+" Resource Pack/assets/")) {
             modelDirectory = modelDirectory+selectedWorld+" Resource Pack/assets/";
             if (Directory.Exists(modelDirectory+entityID[0]+"/models")) modelDirectory = modelDirectory+entityID[0]+"/models";

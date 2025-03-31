@@ -245,7 +245,7 @@ public class ModelDisplay : MonoBehaviour
                 newtexture = filepath;
             }
             else if (atlas != null && atlas.sources.Count != 0) {
-                foreach (MinecraftAtlasSource source in atlas.sources) {
+                foreach (MinecraftAtlasSourceDirectory source in atlas.sources) {
                     if (split[1].StartsWith(source.prefix)) {
                         filepath = Regex.Replace(modelpath,"/assets/[a-z0-9_-]+/models/[a-z0-9/_-]+.json","/assets/" + split[0] + "/textures/" + split[1].Replace(source.prefix,source.source + "/") + ".png");
                         break;
