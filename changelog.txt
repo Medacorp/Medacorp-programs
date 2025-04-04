@@ -1,4 +1,18 @@
-3-29-2025:
+4-4-2025:
+* Meshes are now generated upon running MinecraftModel.ParseModels(string); no parts spawned in yet still
+
+31-3-2025:
+* Broke the program to rewrite it; model parts are no longer spawned in
+* Animator texture atlas is now global, and takes in both the vanilla and custom textures defined by Minecraft's blocks atlas
+* Prompt upon selecting animation group now asks for a spawn function, instead of model files
+** Spawn function is read, and a part is memorized for every line that contains an item (be it armor stand or item display)
+** Item data is read, and item model, custom_data.model_data and custom_model_data fields are parsed
+* Item model is parsed and used to select the models to display
+** Currently only custom_model_data properties are used, others return (condition)false, (select)fallback, (range_dispatch)fallback
+** Special models return empty model
+** Tint types other than custom_model_data return the default; grass type returns plains' color
+
+29-3-2025:
 * Shared python functions and imports are now in a shared file
 * Python program libraries that need to be installed are now automatically installed when running the program (and pip updated)
 * "verify and assemble" world detetion no longer requires root folder name to match world name, as long as a gitignore, a world, and a resource pack exist, it'll succeed

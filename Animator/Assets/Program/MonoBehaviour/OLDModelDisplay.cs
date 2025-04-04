@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 using UnityEngine;
 
-public class ModelDisplay : MonoBehaviour
+public class OLDModelDisplay : MonoBehaviour
 {
 
     public GameObject cameraObject;
@@ -20,24 +20,24 @@ public class ModelDisplay : MonoBehaviour
     public Texture2D missingNo;
     private List<GameObject> variants;
 
-    private List<ConditionalModelPartOffset> conditionalOffsets;
+    private List<OLDConditionalModelPartOffset> conditionalOffsets;
 
-    private List<ConditionalModelPartPose> conditionalPoses;
+    private List<OLDConditionalModelPartPose> conditionalPoses;
 
-    private List<ConditionalModelPartVariant> conditionalVariants;
+    private List<OLDConditionalModelPartVariant> conditionalVariants;
 
     private float[] offsets = {0,0,0};
     private static bool generatingModel = false;
     private static int generatingModelThreads = 0;
-    public void SetOffsets(List<ConditionalModelPartOffset> conditionalOffsets) {
+    public void SetOffsets(List<OLDConditionalModelPartOffset> conditionalOffsets) {
         this.conditionalOffsets = conditionalOffsets;
     }
 
-    public void SetPoses(List<ConditionalModelPartPose> conditionalPoses) {
+    public void SetPoses(List<OLDConditionalModelPartPose> conditionalPoses) {
         this.conditionalPoses = conditionalPoses;
     }
 
-    public void SetVariants(List<ConditionalModelPartVariant> conditionalVariants) {
+    public void SetVariants(List<OLDConditionalModelPartVariant> conditionalVariants) {
         this.conditionalVariants = conditionalVariants;
     }
     public void SetOffsets(float[] values) {
@@ -80,7 +80,7 @@ public class ModelDisplay : MonoBehaviour
         float[] offsets = {0,0,0};
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalOffsets.Count != 0) {
-            foreach (ConditionalModelPartOffset offset in conditionalOffsets) {
+            foreach (OLDConditionalModelPartOffset offset in conditionalOffsets) {
                 if (offset.ConditionsMatch(mainScript)) {
                     float[] offsets2 = offset.GetOffsets();
                     offsets[0] += offsets2[0];
@@ -95,7 +95,7 @@ public class ModelDisplay : MonoBehaviour
         float[] poses = {0,0,0};
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalPoses.Count != 0) {
-            foreach (ConditionalModelPartPose pose in conditionalPoses) {
+            foreach (OLDConditionalModelPartPose pose in conditionalPoses) {
                 if (pose.ConditionsMatch(mainScript)) {
                     float[] poses2 = pose.GetPoses();
                     if (poses2[0] != 9999) poses[0] = poses2[0];
@@ -110,7 +110,7 @@ public class ModelDisplay : MonoBehaviour
         string value = "default";
         Main mainScript = Main.GetComponent<Main>();
         if (conditionalVariants.Count != 0) {
-            foreach (ConditionalModelPartVariant variant in conditionalVariants) {
+            foreach (OLDConditionalModelPartVariant variant in conditionalVariants) {
                 if (variant.ConditionsMatch(mainScript)) {
                     value = variant.GetModelVariant();
                 }
@@ -126,7 +126,7 @@ public class ModelDisplay : MonoBehaviour
                 if (var.name == variant) {
                     var.SetActive(true);
                     for (int i = var.transform.childCount - 1; i >= 0; i--) {
-                        var.transform.GetChild(i).gameObject.GetComponent<TextureAnimator>().highlightDuration = highlight;
+                        var.transform.GetChild(i).gameObject.GetComponent<OLDTextureAnimator>().highlightDuration = highlight;
                     }
                 }
                 else var.SetActive(false);
@@ -148,7 +148,7 @@ public class ModelDisplay : MonoBehaviour
     void Update()
     {
         if (generatingModel && generatingModelThreads == 0) {
-            TextureAnimator.ToggleAnimations(true);
+            OLDTextureAnimator.ToggleAnimations(true);
             generatingModel = false;
             SetCameraHeight();
             print("model is done");
@@ -159,7 +159,7 @@ public class ModelDisplay : MonoBehaviour
         float lowestPoint = 0;
         int totalModels = 0;
         foreach (GameObject model in Main.GetComponent<Main>().modelParts) {
-            foreach (GameObject variant in model.GetComponent<ModelDisplay>().variants) {
+            foreach (GameObject variant in model.GetComponent<OLDModelDisplay>().variants) {
                 for (int i = variant.transform.childCount - 1; i >= 0; i--) {
                     GameObject thisdisplay = variant.transform.GetChild(i).gameObject; 
                     if (thisdisplay.activeSelf) {
@@ -183,7 +183,7 @@ public class ModelDisplay : MonoBehaviour
             }
             this.variants.Clear();
         }
-        TextureAnimator.ToggleAnimations(false);
+        OLDTextureAnimator.ToggleAnimations(false);
         generatingModelThreads += 1;
         GenerateModels(defaultVariant, "default", visibleVariant == "default");
         foreach (KeyValuePair<string,string[]> var in variants) {
@@ -361,7 +361,7 @@ public class ModelDisplay : MonoBehaviour
                 uvOffsetX.Add(textureReference.Key, rectangles[valueIndex].position.x);
                 uvOffsetY.Add(textureReference.Key, rectangles[valueIndex].position.y);
             }
-            newdisplay.GetComponent<TextureAnimator>().SetValues(texturesAnimations, textureAtlas, rectangles);
+            newdisplay.GetComponent<OLDTextureAnimator>().SetValues(texturesAnimations, textureAtlas, rectangles);
             i++;
             Mesh mesh = new();
             mesh.name = gameObject.name + ":" + newVariant.name + ":" + newdisplay.name;
@@ -494,7 +494,7 @@ public class ModelDisplay : MonoBehaviour
             newdisplay.transform.localRotation = Quaternion.Euler(0,0,0);
             newdisplay.GetComponent<MeshFilter>().sharedMesh = mesh;
             newdisplay.GetComponent<MeshCollider>().sharedMesh = mesh;
-            newdisplay.GetComponent<TextureAnimator>().unalteredMesh = mesh;
+            newdisplay.GetComponent<OLDTextureAnimator>().unalteredMesh = mesh;
             newdisplay.transform.localScale = trueScale;
             newdisplay.transform.localPosition = truePosition;
             newdisplay.transform.localRotation = trueRotation;
@@ -580,7 +580,7 @@ public class ModelDisplay : MonoBehaviour
         foreach (GameObject variant in variants) {
             for(int i = variant.transform.childCount - 1; i >= 0; i--) {
                 GameObject thisDisplay = variant.transform.GetChild(i).gameObject;
-                thisDisplay.GetComponent<TextureAnimator>().highlight = false;
+                thisDisplay.GetComponent<OLDTextureAnimator>().highlight = false;
             }
         }
     }
@@ -588,14 +588,14 @@ public class ModelDisplay : MonoBehaviour
         foreach (GameObject variant in variants) {
             for(int i = variant.transform.childCount - 1; i >= 0; i--) {
                 GameObject thisDisplay = variant.transform.GetChild(i).gameObject;
-                thisDisplay.GetComponent<TextureAnimator>().highlight = true;
+                thisDisplay.GetComponent<OLDTextureAnimator>().highlight = true;
             }
         }
     }
     private float GetHighlight() {
         foreach (GameObject variant in variants) {
             for(int i = variant.transform.childCount - 1; i >= 0; i--) {
-                if (variant.transform.GetChild(i).gameObject.activeSelf) return variant.transform.GetChild(i).gameObject.GetComponent<TextureAnimator>().highlightDuration;
+                if (variant.transform.GetChild(i).gameObject.activeSelf) return variant.transform.GetChild(i).gameObject.GetComponent<OLDTextureAnimator>().highlightDuration;
             }
         }
         return 0;

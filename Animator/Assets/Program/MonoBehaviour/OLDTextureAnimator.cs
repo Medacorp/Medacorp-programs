@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TextureAnimator : MonoBehaviour
+public class OLDTextureAnimator : MonoBehaviour
 {
     private List<MinecraftMcmetaAnimation> animationMcmetas;
-    private List<TextureAnimatorFrame> textureAnimatorFrames;
+    private List<OLDTextureAnimatorFrame> textureAnimatorFrames;
     private Rect[] rectangles;
     private Texture2D textureAtlas;
     public Mesh unalteredMesh;
@@ -78,7 +78,7 @@ public class TextureAnimator : MonoBehaviour
         this.rectangles = rectangles;
         textureAnimatorFrames = new();
         foreach (MinecraftMcmetaAnimation animation in animationMcmetas) {
-            TextureAnimatorFrame frame = new();
+            OLDTextureAnimatorFrame frame = new();
             if (animation.parsedFrames.Count > 1) frame.frameTime = animation.parsedFrames[0].time;
             textureAnimatorFrames.Add(new());
         }
@@ -87,7 +87,7 @@ public class TextureAnimator : MonoBehaviour
         textureAtlas.Apply();
         gameObject.GetComponent<MeshRenderer>().material.mainTexture = textureAtlas;
     }
-    public void NextFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
+    public void NextFrame(MinecraftMcmetaAnimation animation, OLDTextureAnimatorFrame animator, Rect rectangle) {
         animator.currentFrame += 1;
         if (animator.currentFrame == animation.parsedFrames.Count) animator.currentFrame = 0;
         Texture2D newTexture = animation.GetFrame(animator.currentFrame);
@@ -96,7 +96,7 @@ public class TextureAnimator : MonoBehaviour
         animator.frameTime += animation.parsedFrames[animator.currentFrame].time;
         if (animator.frameTime <= 0) NextFrame(animation, animator, rectangle);
     }
-    public void NextInterpolatedFrame(MinecraftMcmetaAnimation animation, TextureAnimatorFrame animator, Rect rectangle) {
+    public void NextInterpolatedFrame(MinecraftMcmetaAnimation animation, OLDTextureAnimatorFrame animator, Rect rectangle) {
         int nextFrame = animator.currentFrame + 1;
         if (nextFrame == animation.parsedFrames.Count) nextFrame = 0;
         Color[] currentFramePixels = animation.GetFrame(animator.currentFrame).GetPixels(Mathf.FloorToInt(rectangle.position.x * textureAtlas.width), Mathf.FloorToInt(rectangle.position.y * textureAtlas.height), Mathf.FloorToInt(rectangle.width * textureAtlas.width), Mathf.FloorToInt(rectangle.height * textureAtlas.height));
@@ -130,7 +130,7 @@ public class TextureAnimator : MonoBehaviour
         }
     }
 }
-public class TextureAnimatorFrame {
+public class OLDTextureAnimatorFrame {
     public int currentFrame = 0;
     public float frameTime = 0;
 }

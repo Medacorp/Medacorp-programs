@@ -10,21 +10,21 @@ using UnityEngine.InputSystem.Interactions;
 using UnityEngine.Rendering.Universal;
 
 [Serializable]
-public class ModelPart {
+public class OLDModelPart {
 
     public string name;
     public string[] model;
     public Dictionary<string, string[]> variants;
 
-    private List<ConditionalModelPartOffset> offsetConditions = new();
-    private List<ConditionalModelPartPose> poseConditions = new();
-    private List<ConditionalModelPartVariant> variantConditions = new();
+    private List<OLDConditionalModelPartOffset> offsetConditions = new();
+    private List<OLDConditionalModelPartPose> poseConditions = new();
+    private List<OLDConditionalModelPartVariant> variantConditions = new();
 
     public void addConditionalOffset(string tags, string scores, float[] offsets) {
-        ConditionalModelPartOffset condition = new();
+        OLDConditionalModelPartOffset condition = new();
         condition.conditions = tags + " " + scores;
         if (offsetConditions.Count != 0) {
-            foreach (ConditionalModelPartOffset offset in offsetConditions) {
+            foreach (OLDConditionalModelPartOffset offset in offsetConditions) {
                 if (offset.conditions == tags + " " + scores) {
                     condition = offset;
                     offsetConditions.Remove(condition);
@@ -36,10 +36,10 @@ public class ModelPart {
         offsetConditions.Add(condition);
     }
     public void addConditionalPose(string tags, string scores, float[] defaultState) {
-        ConditionalModelPartPose condition = new();
+        OLDConditionalModelPartPose condition = new();
         condition.conditions = tags + " " + scores;
         if (poseConditions.Count != 0) {
-            foreach (ConditionalModelPartPose pose in poseConditions) {
+            foreach (OLDConditionalModelPartPose pose in poseConditions) {
                 if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     poseConditions.Remove(condition);
@@ -51,10 +51,10 @@ public class ModelPart {
         poseConditions.Add(condition);
     }
     public void addConditionalPose(string tags, string scores, float defaultState, int axis) {
-        ConditionalModelPartPose condition = new();
+        OLDConditionalModelPartPose condition = new();
         condition.conditions = tags + " " + scores;
         if (poseConditions.Count != 0) {
-            foreach (ConditionalModelPartPose pose in poseConditions) {
+            foreach (OLDConditionalModelPartPose pose in poseConditions) {
                 if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     poseConditions.Remove(condition);
@@ -66,10 +66,10 @@ public class ModelPart {
         poseConditions.Add(condition);
     }
     public void addConditionalModelVariant(string tags, string scores, string variant) {
-        ConditionalModelPartVariant condition = new();
+        OLDConditionalModelPartVariant condition = new();
         condition.conditions = tags + " " + scores;
         if (variantConditions.Count != 0) {
-            foreach (ConditionalModelPartVariant pose in variantConditions) {
+            foreach (OLDConditionalModelPartVariant pose in variantConditions) {
                 if (pose.conditions == tags + " " + scores) {
                     condition = pose;
                     variantConditions.Remove(condition);
@@ -80,16 +80,16 @@ public class ModelPart {
         condition.SetConditions(tags, scores, variant);
         variantConditions.Add(condition);
     }
-    public List<ConditionalModelPartOffset> GetOffsets() {
+    public List<OLDConditionalModelPartOffset> GetOffsets() {
         return offsetConditions;
     }
-    public List<ConditionalModelPartPose> GetPoses() {
+    public List<OLDConditionalModelPartPose> GetPoses() {
         return poseConditions;
     }
-    public List<ConditionalModelPartVariant> GetVariants() {
+    public List<OLDConditionalModelPartVariant> GetVariants() {
         return variantConditions;
     }
-    public ModelPart(string name) {
+    public OLDModelPart(string name) {
         this.name = name;
         variants = new();
     }
@@ -185,7 +185,7 @@ public class ModelPart {
         if (models.Length != 0) variants.Add(variant,models);
     }
 }
-public class ConditionalModelPartSetting {
+public class OLDConditionalModelPartSetting {
     public string conditions;
     public Dictionary<string,bool> tags = new();
     public Dictionary<string,string> scores = new();
@@ -240,7 +240,7 @@ public class ConditionalModelPartSetting {
     }
 
 }
-public class ConditionalModelPartPose : ConditionalModelPartSetting {
+public class OLDConditionalModelPartPose : OLDConditionalModelPartSetting {
     private float defaultStateX = 9999;
     private float defaultStateY = 9999;
     private float defaultStateZ = 9999;
@@ -263,7 +263,7 @@ public class ConditionalModelPartPose : ConditionalModelPartSetting {
         return poses;
     }
 }
-public class ConditionalModelPartOffset : ConditionalModelPartSetting {
+public class OLDConditionalModelPartOffset : OLDConditionalModelPartSetting {
     private float[] offsets = {0,0,0};
 
     public void SetConditions(string tags, string scores, float[] offsets) {
@@ -278,7 +278,7 @@ public class ConditionalModelPartOffset : ConditionalModelPartSetting {
     }
 
 }
-public class ConditionalModelPartVariant : ConditionalModelPartSetting {
+public class OLDConditionalModelPartVariant : OLDConditionalModelPartSetting {
     private string variant = "default";
 
     public void SetConditions(string tags, string scores, string variant) {

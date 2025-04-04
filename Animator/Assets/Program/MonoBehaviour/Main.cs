@@ -38,7 +38,7 @@ public class Main : MonoBehaviour
     public GameObject editModelsCompositeSelector;
     private int editModelCompositeIndex;
     public GameObject editModelsSelectedText;
-    public List<ModelPart> parts;
+    public List<OLDModelPart> parts;
     private bool singleModelObject = false;
     public GameObject variantNamePopUp;
     public GameObject variantNamePopUpInput;
@@ -387,23 +387,23 @@ public class Main : MonoBehaviour
                 if (line.Contains("/") && line.Contains(" with")) {
                     string[] splitLine = line.Split("/");
                     string[] fullySplitLine = splitLine[splitLine.Length-1].Split(" with");
-                    parts.Add(new ModelPart(fullySplitLine[0]));
+                    parts.Add(new OLDModelPart(fullySplitLine[0]));
                 }
             }
         }
         else {
             singleModelObject = true;
-            parts.Add(new ModelPart(""));
+            parts.Add(new OLDModelPart(""));
         }
-        SavedEntities savedEntities = new();
+        OLDSavedEntities savedEntities = new();
         if (File.Exists(executionPath + "animator settings/models/" + selectedWorld + ".json")) {
-            savedEntities = JsonConvert.DeserializeObject<SavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
+            savedEntities = JsonConvert.DeserializeObject<OLDSavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
         }
         bool success = false;
         string entityNamespace = ID[0];
         string entityName = ID[1];
-        SavedEntity savedEntity = new(entityNamespace + ":" + entityName, parts);
-        foreach (SavedEntity realSavedEntity in savedEntities.entities) {
+        OLDSavedEntity savedEntity = new(entityNamespace + ":" + entityName, parts);
+        foreach (OLDSavedEntity realSavedEntity in savedEntities.entities) {
             if (realSavedEntity.name == ID[0] + ":" + ID[1]) {
                 parts = realSavedEntity.parts;
                 savedEntity.parts = parts;
@@ -414,12 +414,12 @@ public class Main : MonoBehaviour
         bool cancel = false;
         if (!success) {
             List<string> partQueue = new();
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 partQueue.Add(part.GetName());
             }
             List<string> selectedFiles = SelectModelFiles(partQueue);
             if (selectedFiles.Count != 0) {
-                foreach (ModelPart part in parts) {
+                foreach (OLDModelPart part in parts) {
                     string[] model = {selectedFiles[0]};
                     part.SetModel(model);
                     selectedFiles.RemoveAt(0);
@@ -438,7 +438,7 @@ public class Main : MonoBehaviour
             }
         }
         if (!cancel) {
-            foreach (ModelPart part in savedEntity.parts) {
+            foreach (OLDModelPart part in savedEntity.parts) {
                 if (!singleModelObject) {
                     string newpath = path.Replace("call_part_function",part.GetName());
                     if (File.Exists(newpath)) {
@@ -512,10 +512,10 @@ public class Main : MonoBehaviour
                     modelPart.SetActive(true);
                     modelPart.name = part.GetName();
                     if (modelPart.name == "") modelPart.name = "SingleModelObject";
-                    modelPart.GetComponent<ModelDisplay>().SetOffsets(part.GetOffsets());
-                    modelPart.GetComponent<ModelDisplay>().SetPoses(part.GetPoses());
-                    modelPart.GetComponent<ModelDisplay>().SetVariants(part.GetVariants());
-                    modelPart.GetComponent<ModelDisplay>().SetModel(part.variants, part.model, "default");
+                    modelPart.GetComponent<OLDModelDisplay>().SetOffsets(part.GetOffsets());
+                    modelPart.GetComponent<OLDModelDisplay>().SetPoses(part.GetPoses());
+                    modelPart.GetComponent<OLDModelDisplay>().SetVariants(part.GetVariants());
+                    modelPart.GetComponent<OLDModelDisplay>().SetModel(part.variants, part.model, "default");
                     modelParts.Add(modelPart);
                 }
                 else {
@@ -590,7 +590,7 @@ public class Main : MonoBehaviour
         }
         editModelsTab.SetActive(false);
         foreach (GameObject modelPart in modelParts) {
-            modelPart.GetComponent<ModelDisplay>().GetState();
+            modelPart.GetComponent<OLDModelDisplay>().GetState();
         }
     }
     private void GetAnimations(string path, string animationNamespace, string animationID) {
@@ -644,12 +644,12 @@ public class Main : MonoBehaviour
     }
 
     private void SaveModels() {
-        SavedEntities savedEntities = new();
+        OLDSavedEntities savedEntities = new();
         if (File.Exists(executionPath + "animator settings/models/" + selectedWorld + ".json")) {
-            savedEntities = JsonConvert.DeserializeObject<SavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
+            savedEntities = JsonConvert.DeserializeObject<OLDSavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
         }
         bool success = false;
-        foreach (SavedEntity savedEntity in savedEntities.entities) {
+        foreach (OLDSavedEntity savedEntity in savedEntities.entities) {
             if (savedEntity.name == entityID[0] + ":" + entityID[1]) {
                 savedEntity.parts = parts;
                 success = true;
@@ -657,7 +657,7 @@ public class Main : MonoBehaviour
             }
         }
         if (!success) {
-            SavedEntity savedEntity = new(entityID, parts);
+            OLDSavedEntity savedEntity = new(entityID, parts);
             savedEntities.entities.Add(savedEntity);
         }
         using (StreamWriter outputFile = new(Path.Combine(executionPath + "animator settings/models/" + selectedWorld + ".json")))
@@ -746,7 +746,7 @@ public class Main : MonoBehaviour
                 dropdown.options.Add(new TMP_Dropdown.OptionData("Single part model"));
                 variantDropdown.options.Add(new TMP_Dropdown.OptionData("Default"));
                 editModelPart = "";
-                foreach (ModelPart part in parts) {
+                foreach (OLDModelPart part in parts) {
                     if (part.GetName() == editModelPart) {
                         if (part.variants != null) {
                             foreach (KeyValuePair<string,string[]> variant in part.variants) {
@@ -771,7 +771,7 @@ public class Main : MonoBehaviour
             else {
                 dropdown.interactable = true;
                 dropdown.options.Add(new TMP_Dropdown.OptionData("Select model part"));
-                foreach (ModelPart part in parts) {
+                foreach (OLDModelPart part in parts) {
                     dropdown.options.Add(new TMP_Dropdown.OptionData(part.GetName()));
                 }
                 variantDropdown.options.Add(new TMP_Dropdown.OptionData("Select model variant"));
@@ -808,7 +808,7 @@ public class Main : MonoBehaviour
             TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
             compositionDropdown.options.Clear();
             compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     editModelsDeleteButton.GetComponent<Button>().interactable = true;
                     if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
@@ -836,16 +836,16 @@ public class Main : MonoBehaviour
     }
     private void ModelToDefault() {
         if (editModelPart != null) {
-            if (singleModelObject) modelParts[0].GetComponent<ModelDisplay>().GetState();
+            if (singleModelObject) modelParts[0].GetComponent<OLDModelDisplay>().GetState();
             else {
                 foreach (GameObject modelPart in modelParts) {
-                    if (modelPart.name == editModelPart) modelPart.GetComponent<ModelDisplay>().GetState();
+                    if (modelPart.name == editModelPart) modelPart.GetComponent<OLDModelDisplay>().GetState();
                 }
             }
         }
         else {
             foreach (GameObject modelPart in modelParts) {
-                modelPart.GetComponent<ModelDisplay>().GetState();
+                modelPart.GetComponent<OLDModelDisplay>().GetState();
             }
         }
         
@@ -859,7 +859,7 @@ public class Main : MonoBehaviour
             compositionDropdown.options.Clear();
             compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
             editModelsDeleteButton.GetComponent<Button>().interactable = true;
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
                     for (int i = 0; i < part.GetModel().Length; i++) {
@@ -879,7 +879,7 @@ public class Main : MonoBehaviour
                 compositionDropdown.options.Clear();
                 compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
                 editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                foreach (ModelPart part in parts) {
+                foreach (OLDModelPart part in parts) {
                     if (part.GetName() == editModelPart) {
                         if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
                         for (int i = 0; i < part.GetModel().Length; i++) {
@@ -898,7 +898,7 @@ public class Main : MonoBehaviour
             compositionDropdown.options.Clear();
             compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
             editModelsDeleteButton.GetComponent<Button>().interactable = true;
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     for (int i = 0; i < part.GetModel().Length; i++) {
                         compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
@@ -920,7 +920,7 @@ public class Main : MonoBehaviour
                 string selectedFile = SelectModelFile(editModelPart,editModelVariant);
                 if (selectedFile != "") {
                     editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                    foreach (ModelPart part in parts) {
+                    foreach (OLDModelPart part in parts) {
                         if (part.GetName() == editModelPart) {
                             if (editModelVariant == "default") {
                                 part.SetModel(selectedFile, part.GetModel().Length + 1);
@@ -951,7 +951,7 @@ public class Main : MonoBehaviour
     public void PressEditModelsChangeButton() {
         string selectedFile = SelectModelFile(editModelPart,editModelVariant);
         if (selectedFile != "") {
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     if (editModelVariant == "default") {
                         part.SetModel(selectedFile, editModelCompositeIndex);
@@ -971,7 +971,7 @@ public class Main : MonoBehaviour
         TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
         compositionDropdown.options.Clear();
         compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-        foreach (ModelPart part in parts) {
+        foreach (OLDModelPart part in parts) {
             if (part.GetName() == editModelPart) {
                 if (editModelVariant == "default") {
                     part.DeleteModel(editModelCompositeIndex);
@@ -1008,16 +1008,16 @@ public class Main : MonoBehaviour
 
     private void RefreshModel(bool regenerate) {
         if (singleModelObject) {
-            if (regenerate) modelParts[0].GetComponent<ModelDisplay>().SetModel(parts[0].variants, parts[0].model, editModelVariant);
-            else modelParts[0].GetComponent<ModelDisplay>().SetVisibleVariant(editModelVariant);
+            if (regenerate) modelParts[0].GetComponent<OLDModelDisplay>().SetModel(parts[0].variants, parts[0].model, editModelVariant);
+            else modelParts[0].GetComponent<OLDModelDisplay>().SetVisibleVariant(editModelVariant);
         }
         else {
             foreach (GameObject modelPart in modelParts) {
                 if (modelPart.name == editModelPart) {
-                    foreach (ModelPart part in parts) {
+                    foreach (OLDModelPart part in parts) {
                         if (part.GetName() == editModelPart) {
-                            if (regenerate) modelPart.GetComponent<ModelDisplay>().SetModel(part.variants, part.model, editModelVariant);
-                            else modelPart.GetComponent<ModelDisplay>().SetVisibleVariant(editModelVariant);
+                            if (regenerate) modelPart.GetComponent<OLDModelDisplay>().SetModel(part.variants, part.model, editModelVariant);
+                            else modelPart.GetComponent<OLDModelDisplay>().SetVisibleVariant(editModelVariant);
                             break;
                         }
                     }
@@ -1029,7 +1029,7 @@ public class Main : MonoBehaviour
     private void SetSelectedModelName() {
         editModelsSelectedText.GetComponent<TMP_Text>().text = "No model selected";
         if (editModelPart != null) {
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     if (editModelVariant == "default") {
                         editModelsSelectedText.GetComponent<TMP_Text>().text = part.GetModel(editModelCompositeIndex);
@@ -1056,7 +1056,7 @@ public class Main : MonoBehaviour
                 variantNamePopUpButton.GetComponent<Button>().interactable = false;
                 return;
             }
-            foreach (ModelPart part in parts) {
+            foreach (OLDModelPart part in parts) {
                 if (part.GetName() == editModelPart) {
                     if (part.variants != null) {
                         foreach (KeyValuePair<string,string[]> variant in part.variants) {
@@ -1090,7 +1090,7 @@ public class Main : MonoBehaviour
                 compositionDropdown.options.Clear();
                 compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
                 compositionDropdown.options.Add(new TMP_Dropdown.OptionData("0"));
-                foreach (ModelPart part in parts) {
+                foreach (OLDModelPart part in parts) {
                     if (part.GetName() == editModelPart) {
                         if (part.variants == null) part.variants = new();
                         part.variants.Add(name,model.ToArray());
@@ -1111,8 +1111,8 @@ public class Main : MonoBehaviour
     }
     public void SetSelectedModelPart(GameObject selectedModelPart) {
         if (this.selectedModelPart != selectedModelPart) {
-            if (this.selectedModelPart != null) this.selectedModelPart.GetComponent<ModelDisplay>().UnHighlight();
-            if (selectedModelPart != null) selectedModelPart.GetComponent<ModelDisplay>().Highlight();
+            if (this.selectedModelPart != null) this.selectedModelPart.GetComponent<OLDModelDisplay>().UnHighlight();
+            if (selectedModelPart != null) selectedModelPart.GetComponent<OLDModelDisplay>().Highlight();
             this.selectedModelPart = selectedModelPart;
         }
         if (selectedModelPart != null) {
