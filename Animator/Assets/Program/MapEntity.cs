@@ -114,8 +114,8 @@ public class MinecraftItem {
         else if (SNBT.Contains("id:\"")) item_model = SNBT.Split("id:\"")[1].Split("\"")[0];
         if (SNBT.Contains("\"minecraft:custom_model_data\":{")) {
             string cutLine = SNBT.Split("\"minecraft:custom_model_data\":{")[1].Split("}")[0];
-            if (cutLine.Contains("flags:[B;")) {
-                string tags = SNBT.Split("flags:[B;")[1].Split("b]")[0];
+            if (cutLine.Contains("flags:[")) {
+                string tags = SNBT.Split("flags:[")[1].Split("b]")[0];
                 string[] flags = tags.Split("b,");
                 this.flags = new();
                 foreach (string flag in flags) {
@@ -139,8 +139,8 @@ public class MinecraftItem {
                     this.strings.Add(s);
                 }
             }
-            if (cutLine.Contains("colors:[I;")) {
-                string tags = SNBT.Split("colors:[I;")[1].Split("]")[0];
+            if (cutLine.Contains("colors:[")) {
+                string tags = SNBT.Split("colors:[")[1].Split("]")[0];
                 string[] colors = tags.Split(",");
                 this.colors = new();
                 foreach (string c in colors) {
