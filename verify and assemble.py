@@ -249,8 +249,12 @@ while True:
                     officialAddons = [name for name in os.listdir(path + "Official add-ons") if os.path.isdir(os.path.join(path + "Official add-ons", name))]
                     for addon in officialAddons:
                         addonName = addon.replace(" add-on","")
-                        if os.path.isfile(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta") == False:
-                            write("VERIFY: " + addon + " is missing its pack.mcmeta")
+                        if os.path.isdir(path + "Official add-ons/" + addon + "/" + addonName):
+                            if os.path.isfile(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta") == False:
+                                write("VERIFY: " + addon + " is missing its pack.mcmeta")
+                                succeed = False
+                        else:
+                            write("VERIFY: " + addon + " is missing")
                             succeed = False
                 
                 #Check save data
@@ -430,16 +434,21 @@ while True:
                     officialAddons = [name for name in os.listdir(path + "Official add-ons") if os.path.isdir(os.path.join(path + "Official add-ons", name))]
                     for addon in officialAddons:
                         addonName = addon.replace(" add-on","")
-                        foundMcmeta = True
-                        if os.path.isfile(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta") == False:
-                            foundMcmeta = False
-                            for file in [name for name in os.listdir(path + "Official add-ons/" + addon + "/" + addonName) if os.path.isfile(os.path.join(path + "Official add-ons/" + addon + "/" + addonName, name))]:
-                                if file.endswith(".mcmeta"):
-                                    write("RESET: " + addon + "'s \"" + file + "\" renamed to \"pack.mcmeta\"")
-                                    os.rename(os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/" + file), os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta"))
-                                    foundMcmeta = True
-                        if foundMcmeta == False: 
-                            write("RESET ERROR: " + addon + " is missing its pack.mcmeta; this needs manual fixing")
+                        if os.path.isdir(path + "Official add-ons/" + addon + "/" + addonName):
+                            foundMcmeta = True
+                            if os.path.isfile(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta") == False:
+                                foundMcmeta = False
+                                for file in [name for name in os.listdir(path + "Official add-ons/" + addon + "/" + addonName) if os.path.isfile(os.path.join(path + "Official add-ons/" + addon + "/" + addonName, name))]:
+                                    if file.endswith(".mcmeta"):
+                                        write("RESET: " + addon + "'s \"" + file + "\" renamed to \"pack.mcmeta\"")
+                                        os.rename(os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/" + file), os.path.join(path + "Official add-ons/" + addon + "/" + addonName + "/pack.mcmeta"))
+                                        foundMcmeta = True
+                            if foundMcmeta == False: 
+                                write("RESET ERROR: " + addon + " is missing its pack.mcmeta; this needs manual fixing")
+                                succeed = False
+                                missingPackMcmeta = True
+                        else:
+                            write("RESET WARN: " + addon + " is missing altogether; this needs manual fixing")
                             succeed = False
                             missingPackMcmeta = True
                 
