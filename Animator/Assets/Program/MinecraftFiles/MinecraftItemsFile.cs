@@ -27,7 +27,7 @@ public class MinecraftItemsFile
         if (GetType.type == "model") {
             MinecraftItemModel convertedModel = JsonConvert.DeserializeObject<MinecraftItemModel>(jsonParent);
             convertedModel.type = GetType.type;
-            if (convertedModel.tints != null && convertedModel.tints.Count != 0) convertedModel.Parse();
+            convertedModel.Parse();
             return convertedModel;
         }
         else if (GetType.type == "composite")
@@ -169,42 +169,45 @@ public class MinecraftItemModel : MinecraftItemModelBase
     public void Parse()
     {
         List<MinecraftItemTint> newtints = new();
-        foreach (var tint in tints)
+        if (tints != null && tints.Count != 0)
         {
-            var jsonParent = JsonConvert.SerializeObject(tint);
-            MinecraftItemModelBase GetType = JsonConvert.DeserializeObject<MinecraftItemModelBase>(jsonParent);
-            GetType.type = GetType.type.Replace("minecraft:", "");
-            if (GetType.type == "constant"
-                || GetType.type == "dye"
-                || GetType.type == "firework"
-                || GetType.type == "map_color"
-                || GetType.type == "potion"
-                || GetType.type == "team")
+            foreach (var tint in tints)
             {
-                MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
-                convertedTint.type = GetType.type;
-                newtints.Add(convertedTint);
-            }
-            else if (GetType.type == "grass")
-            {
-                MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
-                convertedTint.type = GetType.type;
-                convertedTint.value = 7979098; //#79c05a; color for forest
-                newtints.Add(convertedTint);
-            }
-            else if (GetType.type == "custom_model_data")
-            {
-                MinecraftItemTintCustomData convertedTint = JsonConvert.DeserializeObject<MinecraftItemTintCustomData>(jsonParent);
-                convertedTint.type = GetType.type;
-                newtints.Add(convertedTint);
-            }
-            else
-            {
-                MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
-                convertedTint.type = GetType.type;
-                convertedTint.value = 0; //Turn pitch black
-                newtints.Add(convertedTint);
-                Debug.Log("Unknown tint type: \"" + GetType.type + "\"");
+                var jsonParent = JsonConvert.SerializeObject(tint);
+                MinecraftItemModelBase GetType = JsonConvert.DeserializeObject<MinecraftItemModelBase>(jsonParent);
+                GetType.type = GetType.type.Replace("minecraft:", "");
+                if (GetType.type == "constant"
+                    || GetType.type == "dye"
+                    || GetType.type == "firework"
+                    || GetType.type == "map_color"
+                    || GetType.type == "potion"
+                    || GetType.type == "team")
+                {
+                    MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
+                    convertedTint.type = GetType.type;
+                    newtints.Add(convertedTint);
+                }
+                else if (GetType.type == "grass")
+                {
+                    MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
+                    convertedTint.type = GetType.type;
+                    convertedTint.value = 7979098; //#79c05a; color for forest
+                    newtints.Add(convertedTint);
+                }
+                else if (GetType.type == "custom_model_data")
+                {
+                    MinecraftItemTintCustomData convertedTint = JsonConvert.DeserializeObject<MinecraftItemTintCustomData>(jsonParent);
+                    convertedTint.type = GetType.type;
+                    newtints.Add(convertedTint);
+                }
+                else
+                {
+                    MinecraftItemTint convertedTint = JsonConvert.DeserializeObject<MinecraftItemTint>(jsonParent);
+                    convertedTint.type = GetType.type;
+                    convertedTint.value = 0; //Turn pitch black
+                    newtints.Add(convertedTint);
+                    Debug.Log("Unknown tint type: \"" + GetType.type + "\"");
+                }
             }
         }
         parsedTints = newtints;

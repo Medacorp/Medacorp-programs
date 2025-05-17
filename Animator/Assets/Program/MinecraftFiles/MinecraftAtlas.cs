@@ -8,6 +8,7 @@ using UnityEngine;
 
 [Serializable]
 public class MinecraftAtlas {
+    public static List<object> vanillaSources = new();
     public List<object> sources = new();
     public List<MinecraftAtlasSourceBase> parsedSources;
 
@@ -84,14 +85,12 @@ public class MinecraftAtlas {
                         Textures.RemoveAt(i);
                         MCMetas.RemoveAt(i);
                         textureFiles.RemoveAt(i);
-                        break;
                     }
-                    if (p != null && Regex.Match(split[0], p).Success)
+                    else if (p != null && Regex.Match(split[1], p).Success)
                     {
                         Textures.RemoveAt(i);
                         MCMetas.RemoveAt(i);
                         textureFiles.RemoveAt(i);
-                        break;
                     }
                 }
             }
@@ -150,8 +149,8 @@ public class MinecraftAtlasSourceDirectory : MinecraftAtlasSourceBase
                     texture.filterMode = FilterMode.Point;
                     MinecraftMcmetaAnimation mcmeta = new(2, 2);
                     byte[] fileData = File.ReadAllBytes(file);
-                    string textureID = file.Replace(path + "assets/" + n + "/textures/", n + ":").Replace(".png", "");
-                    if (fileData != null)
+                    string textureID = file.Replace(path + "assets/" + n + "/textures/", n + ":").Replace(".png", "").Replace("\\","/");
+                    if (fileData != null && !textureFiles.Contains(textureID.Replace(source + "/", prefix)) && TextureAtlas.texturesInUse.Contains(textureID.Replace(source + "/", prefix)))
                     {
                         texture.LoadImage(fileData);
                         texture.name = textureID;
@@ -180,8 +179,8 @@ public class MinecraftAtlasSourceDirectory : MinecraftAtlasSourceBase
                     texture.filterMode = FilterMode.Point;
                     MinecraftMcmetaAnimation mcmeta = new(2, 2);
                     byte[] fileData = File.ReadAllBytes(file);
-                    string textureID = file.Replace(minecraftPath + n + "/textures/", n + ":").Replace(".png", "");
-                    if (fileData != null && !textureFiles.Contains(textureID))
+                    string textureID = file.Replace(minecraftPath + n + "/textures/", n + ":").Replace(".png", "").Replace("\\","/");
+                    if (fileData != null && !textureFiles.Contains(textureID.Replace(source + "/", prefix)) && TextureAtlas.texturesInUse.Contains(textureID.Replace(source + "/", prefix)))
                     {
                         texture.LoadImage(fileData);
                         texture.name = textureID;
@@ -219,13 +218,14 @@ public class MinecraftAtlasSourceSingle : MinecraftAtlasSourceBase
         if (resource.Contains(":")) split = resource.Split(':');
         else split[1] = resource;
         string value = split[0] + "/textures/" + split[1] + ".png";
+        string textureID = split[0] + ":" + split[1];
         if (File.Exists(path + "assets/" + value))
         {
             byte[] fileData = File.ReadAllBytes(path + "assets/" + value);
-            if (fileData != null)
+            if (fileData != null && !textureFiles.Contains(sprite) && TextureAtlas.texturesInUse.Contains(sprite))
             {
                 texture.LoadImage(fileData);
-                texture.name = split[0] + ":" + split[1];
+                texture.name = textureID;
                 mcmeta = TextureAtlas.LoadTextureMcmeta(path + "assets/" + value, texture);
                 if (texture != null && mcmeta != null)
                 {
@@ -241,18 +241,19 @@ public class MinecraftAtlasSourceSingle : MinecraftAtlasSourceBase
         else if (File.Exists(minecraftPath + value))
         {
             byte[] fileData = File.ReadAllBytes(minecraftPath + value);
-            if (fileData != null)
+            if (fileData != null && !textureFiles.Contains(sprite) && TextureAtlas.texturesInUse.Contains(sprite))
             {
                 texture.LoadImage(fileData);
-                texture.name = split[0] + ":" + split[1];
+                texture.name = textureID;
                 mcmeta = TextureAtlas.LoadTextureMcmeta(minecraftPath + value, texture);
-                if (texture != null && mcmeta != null) { 
+                if (texture != null && mcmeta != null)
+                {
                     mcmeta.SetTexture(texture);
                     texture = mcmeta.GetFrame(0);
                     textureFiles.Add(sprite);
                     Textures.Add(texture);
                     MCMetas.Add(mcmeta);
-                
+
                 }
                 //else MissingNo
             }
@@ -301,24 +302,27 @@ public class MinecraftAtlasSourceUnstitch : MinecraftAtlasSourceBase
             {
                 foreach (MinecraftAtlasSourceUnstitchRegion region in regions)
                 {
-                    Texture2D texture = new Texture2D(2, 2);
-                    texture.filterMode = FilterMode.Point;
-                    MinecraftMcmetaAnimation mcmeta = new(2, 2);
-                    texture.LoadImage(fileData);
-                    Color[] c = texture.GetPixels(Convert.ToInt32(region.x * divisor_x), Convert.ToInt32((region.y * divisor_y) * -1 + 1 - region.height), Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
-                    texture = new Texture2D(Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
-                    texture.SetPixels(c);
-                    texture.name = split[0] + ":" + split[1];
-                    mcmeta = TextureAtlas.LoadTextureMcmeta(path + "assets/" + value, texture);
-                    if (texture != null && mcmeta != null)
+                    if (!textureFiles.Contains(region.sprite) && TextureAtlas.texturesInUse.Contains(region.sprite))
                     {
-                        mcmeta.SetTexture(texture);
-                        texture = mcmeta.GetFrame(0);
-                        textureFiles.Add(region.sprite);
-                        Textures.Add(texture);
-                        MCMetas.Add(mcmeta);
+                        Texture2D texture = new Texture2D(2, 2);
+                        texture.filterMode = FilterMode.Point;
+                        MinecraftMcmetaAnimation mcmeta = new(2, 2);
+                        texture.LoadImage(fileData);
+                        Color[] c = texture.GetPixels(Convert.ToInt32(region.x * divisor_x), Convert.ToInt32((region.y * divisor_y) * -1 + 1 - region.height), Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
+                        texture = new Texture2D(Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
+                        texture.SetPixels(c);
+                        texture.name = split[0] + ":" + split[1];
+                        mcmeta = TextureAtlas.LoadTextureMcmeta(path + "assets/" + value, texture);
+                        if (texture != null && mcmeta != null)
+                        {
+                            mcmeta.SetTexture(texture);
+                            texture = mcmeta.GetFrame(0);
+                            textureFiles.Add(region.sprite);
+                            Textures.Add(texture);
+                            MCMetas.Add(mcmeta);
+                        }
+                        //else MissingNo
                     }
-                    //else MissingNo
                 }
             }
         }
@@ -329,24 +333,27 @@ public class MinecraftAtlasSourceUnstitch : MinecraftAtlasSourceBase
             {
                 foreach (MinecraftAtlasSourceUnstitchRegion region in regions)
                 {
-                    Texture2D texture = new Texture2D(2, 2);
-                    texture.filterMode = FilterMode.Point;
-                    MinecraftMcmetaAnimation mcmeta = new(2, 2);
-                    texture.LoadImage(fileData);
-                    Color[] c = texture.GetPixels(Convert.ToInt32(region.x * divisor_x), Convert.ToInt32((region.y * divisor_y) * -1 + 1 - region.height), Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
-                    texture = new Texture2D(Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
-                    texture.SetPixels(c);
-                    texture.name = split[0] + ":" + split[1];
-                    mcmeta = TextureAtlas.LoadTextureMcmeta(minecraftPath + value, texture);
-                    if (texture != null && mcmeta != null)
+                    if (!textureFiles.Contains(region.sprite) && TextureAtlas.texturesInUse.Contains(region.sprite))
                     {
-                        mcmeta.SetTexture(texture);
-                        texture = mcmeta.GetFrame(0);
-                        textureFiles.Add(region.sprite);
-                        Textures.Add(texture);
-                        MCMetas.Add(mcmeta);
+                        Texture2D texture = new Texture2D(2, 2);
+                        texture.filterMode = FilterMode.Point;
+                        MinecraftMcmetaAnimation mcmeta = new(2, 2);
+                        texture.LoadImage(fileData);
+                        Color[] c = texture.GetPixels(Convert.ToInt32(region.x * divisor_x), Convert.ToInt32((region.y * divisor_y) * -1 + 1 - region.height), Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
+                        texture = new Texture2D(Convert.ToInt32(region.width * divisor_x), Convert.ToInt32(region.height * divisor_y));
+                        texture.SetPixels(c);
+                        texture.name = split[0] + ":" + split[1];
+                        mcmeta = TextureAtlas.LoadTextureMcmeta(minecraftPath + value, texture);
+                        if (texture != null && mcmeta != null)
+                        {
+                            mcmeta.SetTexture(texture);
+                            texture = mcmeta.GetFrame(0);
+                            textureFiles.Add(region.sprite);
+                            Textures.Add(texture);
+                            MCMetas.Add(mcmeta);
+                        }
+                        //else MissingNo
                     }
-                    //else MissingNo
                 }
             }
         }
@@ -428,66 +435,70 @@ public class MinecraftAtlasSourcePalettedPermutations : MinecraftAtlasSourceBase
                 Color[] pixelsPalette = palette.GetPixels();
                 foreach (KeyValuePair<string, string> permutation in permutations)
                 {
-                    bool foundPalette = false;
-                    Texture2D modifiedTexture = new(baseTexture.width, baseTexture.height);
-                    modifiedTexture.filterMode = FilterMode.Point;
-                    //Deep copy mcmeta
-                    MinecraftMcmetaAnimation newMcmeta = JsonConvert.DeserializeObject<MinecraftMcmetaAnimation>(JsonConvert.SerializeObject(mcmeta));
-                    Color[] pixels = baseTexture.GetPixels();
-                    Color[] pixelsReplace = { };
-                    Texture2D paletteTexture = new(2, 2);
-                    paletteTexture.filterMode = FilterMode.Point;
-                    string[] splitPermutation = { "minecraft", "" };
-                    if (permutation.Value.Contains(":")) splitPermutation = permutation.Value.Split(':');
-                    else splitPermutation[1] = permutation.Value;
-                    if (File.Exists(path + "assets/" + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png"))
+                    string textureID = textureEntry + separator + permutation.Key;
+                    if (!textureFiles.Contains(textureID) && TextureAtlas.texturesInUse.Contains(textureID))
                     {
-                        byte[] fileData = File.ReadAllBytes(path + "assets/" + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png");
-                        if (fileData != null)
+                        bool foundPalette = false;
+                        Texture2D modifiedTexture = new(baseTexture.width, baseTexture.height);
+                        modifiedTexture.filterMode = FilterMode.Point;
+                        //Deep copy mcmeta
+                        MinecraftMcmetaAnimation newMcmeta = JsonConvert.DeserializeObject<MinecraftMcmetaAnimation>(JsonConvert.SerializeObject(mcmeta));
+                        Color[] pixels = baseTexture.GetPixels();
+                        Color[] pixelsReplace = { };
+                        Texture2D paletteTexture = new(2, 2);
+                        paletteTexture.filterMode = FilterMode.Point;
+                        string[] splitPermutation = { "minecraft", "" };
+                        if (permutation.Value.Contains(":")) splitPermutation = permutation.Value.Split(':');
+                        else splitPermutation[1] = permutation.Value;
+                        if (File.Exists(path + "assets/" + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png"))
                         {
-                            paletteTexture.LoadImage(fileData);
-                            foundPalette = true;
-                            pixelsReplace = paletteTexture.GetPixels();
-                        }
-                    }
-                    else if (File.Exists(minecraftPath + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png"))
-                    {
-                        byte[] fileData = File.ReadAllBytes(minecraftPath + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png");
-                        if (fileData != null)
-                        {
-                            paletteTexture.LoadImage(fileData);
-                            foundPalette = true;
-                            pixelsReplace = paletteTexture.GetPixels();
-                        }
-                    }
-                    if (foundPalette && pixelsPalette.Length == pixelsReplace.Length)
-                    {
-                        List<Color> colors = new();
-                        foreach (Color pixel in pixels)
-                        {
-                            Color c = new(pixel.r, pixel.g, pixel.b, pixel.a);
-                            int i = 0;
-                            foreach (Color pal in pixelsPalette)
+                            byte[] fileData = File.ReadAllBytes(path + "assets/" + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png");
+                            if (fileData != null)
                             {
-                                if (pixel.r == pal.r && pixel.g == pal.g && pixel.b == pal.b)
-                                {
-                                    c.r = pixelsReplace[i].r;
-                                    c.g = pixelsReplace[i].g;
-                                    c.b = pixelsReplace[i].b;
-                                    c.a = c.a * pixelsReplace[i].a;
-                                }
-                                i++;
+                                paletteTexture.LoadImage(fileData);
+                                foundPalette = true;
+                                pixelsReplace = paletteTexture.GetPixels();
                             }
-                            colors.Add(c);
                         }
-                        modifiedTexture.SetPixels(colors.ToArray());
-                        newMcmeta.SetTexture(modifiedTexture);
-                        modifiedTexture = newMcmeta.GetFrame(0);
-                        textureFiles.Add(textureEntry + separator + permutation.Key);
-                        Textures.Add(modifiedTexture);
-                        MCMetas.Add(newMcmeta);
+                        else if (File.Exists(minecraftPath + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png"))
+                        {
+                            byte[] fileData = File.ReadAllBytes(minecraftPath + splitPermutation[0] + "/textures/" + splitPermutation[1] + ".png");
+                            if (fileData != null)
+                            {
+                                paletteTexture.LoadImage(fileData);
+                                foundPalette = true;
+                                pixelsReplace = paletteTexture.GetPixels();
+                            }
+                        }
+                        if (foundPalette && pixelsPalette.Length == pixelsReplace.Length)
+                        {
+                            List<Color> colors = new();
+                            foreach (Color pixel in pixels)
+                            {
+                                Color c = new(pixel.r, pixel.g, pixel.b, pixel.a);
+                                int i = 0;
+                                foreach (Color pal in pixelsPalette)
+                                {
+                                    if (pixel.r == pal.r && pixel.g == pal.g && pixel.b == pal.b)
+                                    {
+                                        c.r = pixelsReplace[i].r;
+                                        c.g = pixelsReplace[i].g;
+                                        c.b = pixelsReplace[i].b;
+                                        c.a = c.a * pixelsReplace[i].a;
+                                    }
+                                    i++;
+                                }
+                                colors.Add(c);
+                            }
+                            modifiedTexture.SetPixels(colors.ToArray());
+                            newMcmeta.SetTexture(modifiedTexture);
+                            modifiedTexture = newMcmeta.GetFrame(0);
+                            textureFiles.Add(textureID);
+                            Textures.Add(modifiedTexture);
+                            MCMetas.Add(newMcmeta);
+                        }
+                        //else MissingNo
                     }
-                    //else MissingNo
                 }
             }
         }
@@ -547,7 +558,7 @@ public class MinecraftMcmetaAnimation {
         if (frames != null && frames.Count != 0) {
             foreach (var frame in frames)
             {
-                // If the frame is an integer, create a FrameData with default time=1
+                // If the frame is an integer, create a FrameData with default time
                 if (frame is Int64)
                 {
                     parsedFrames.Add(new MinecraftMcmetaAnimationFrame

@@ -8,6 +8,8 @@ using UnityEngine.UI;
 using Newtonsoft.Json;
 using System.Threading;
 using System.Text.RegularExpressions;
+using System.IO.Compression;
+using System.Linq;
 
 
 public class Main : MonoBehaviour
@@ -27,24 +29,10 @@ public class Main : MonoBehaviour
     private MapEntity mapEntity;
     public GameObject animationSelector;
     private string selectedAnimation;
-    public GameObject editModelsButton;
-    public GameObject editModelsTab;
-    public GameObject editModelsPartSelector;
-    private string editModelPart;
-    public GameObject editModelsVariantSelector;
-    private string editModelVariant;
-    public GameObject editModelsChangeButton;
-    public GameObject editModelsDeleteButton;
-    public GameObject editModelsCompositeSelector;
-    private int editModelCompositeIndex;
-    public GameObject editModelsSelectedText;
+    public GameObject changeFunctionButton;
+    public GameObject modelDisplay;
     public List<OLDModelPart> parts;
     private bool singleModelObject = false;
-    public GameObject variantNamePopUp;
-    public GameObject variantNamePopUpInput;
-    public GameObject variantNamePopUpError;
-    public GameObject variantNamePopUpButton;
-    public GameObject variantNamePopUpButtonText;
     public GameObject entity;
     public GameObject templateModelPart;
     public GameObject templateTagToggle;
@@ -57,11 +45,14 @@ public class Main : MonoBehaviour
     private List<string> createdTagToggles = new();
     private List<string> createdScoreToggles = new();
     private GameObject selectedModelPart;
-    private bool awaitingEntities;
+    private List<string> awaiting = new();
+    public GameObject loadingScreen;
+    public GameObject loadingText;
     
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        Texture.allowThreadedTextureCreation = true;
         executionPath = executionPath.Remove(executionPath.Length-53);
         if (!Directory.Exists(executionPath + "animator settings/")) {
             Directory.CreateDirectory(executionPath + "animator settings/");
@@ -99,13 +90,42 @@ public class Main : MonoBehaviour
         } 
         dropdown.value = 0;
         dropdown.RefreshShownValue();
-        awaitingEntities = false;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (awaitingEntities && validEntities.Count != 0 && TextureAtlas.rectangles.Length != 0) SetValidEntities();
+        if (awaiting.Count != 0)
+        {
+            loadingScreen.SetActive(true);
+            string loading = "Loading...";
+            switch (awaiting[0])
+            {
+                case "assets":
+                    loading = "Extracting Minecraft assets...";
+                    break;
+                case "entities":
+                    loading = "Getting animation groups...";
+                    break;
+                case "entitiesDone":
+                    loading = "Getting animation groups...";
+                    //This line may not run on another thread
+                    if (addOnSelector.GetComponent<TMP_Dropdown>().value != 0) AddOnSelected();
+                    awaiting.RemoveAll(i => i == "entitiesDone");
+                    break;
+            }
+            TMP_Text text = loadingText.GetComponent<TMP_Text>();
+            text.text = loading;
+            Color32 color = text.color;
+            if (color.g != 0 && color.r == 0 && color.b == 255) color.g -= 1;
+            else if (color.r != 255 && color.g == 0 && color.b == 255) color.r += 1;
+            else if (color.b != 0 && color.g == 0 && color.r == 255) color.b -= 1;
+            else if (color.g != 255 && color.b == 0 && color.r == 255) color.g += 1;
+            else if (color.r != 0 && color.b == 0 && color.g == 255) color.r -= 1;
+            else if (color.b != 255 && color.r == 0 && color.g == 255) color.b += 1;
+            text.color = color;
+        }
+        else loadingScreen.SetActive(false);
         TextureAtlas.AdvanceAnimations(Time.deltaTime*20);
     }
 
@@ -140,9 +160,10 @@ public class Main : MonoBehaviour
                 }
             }
             validEntities = new();
+            Thread threadedCloneAssets = new Thread(() => GetMinecraftAssets());
+            threadedCloneAssets.Start();
             Thread threadedGetEntities = new Thread(() => GetEntities());
             threadedGetEntities.Start();
-            TextureAtlas.ParseAtlas(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/", executionPath + "animator settings/");
         }
         animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
@@ -151,36 +172,99 @@ public class Main : MonoBehaviour
         ClearModel();
     }
 
-    private void GetEntities() {
-        awaitingEntities = true;
+    private void GetEntities()
+    {
+        awaiting.Add("entities");
         List<string> newValidEntities = new();
-        foreach (string addOn in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/")) {
+        foreach (string addOn in Directory.GetDirectories(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/"))
+        {
             string[] split = addOn.Split("/");
-            string dataPack = split[split.Length-1];
-            string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + dataPack + "/data/";
-            foreach (string folder in Directory.GetDirectories(path)) {
+            string dataPack = split[split.Length - 1];
+            string path = worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/" + dataPack + "/data/";
+            foreach (string folder in Directory.GetDirectories(path))
+            {
                 string[] split2 = folder.Split("/");
-                string animationNamespace = split2[split2.Length-1];
+                string animationNamespace = split2[split2.Length - 1];
                 string path2 = path + animationNamespace + "/function/animations/";
-                if (Directory.Exists(path2)) {
+                if (Directory.Exists(path2))
+                {
                     string[] mainFunctions = Directory.GetFiles(path2, "main.mcfunction", SearchOption.AllDirectories);
                     string[] callFunctions = Directory.GetFiles(path2, "call_part_function.mcfunction", SearchOption.AllDirectories);
-                    foreach (string function in mainFunctions) {
-                        newValidEntities.Add(animationNamespace + ":" + function.Replace(path2,"").Replace("\\main.mcfunction","") + ":" + dataPack);
+                    foreach (string function in mainFunctions)
+                    {
+                        newValidEntities.Add(animationNamespace + ":" + function.Replace(path2, "").Replace("\\main.mcfunction", "") + ":" + dataPack);
                     }
-                    foreach (string function in callFunctions) {
-                        string trim = function.Replace(path2,"").Replace("\\call_part_function.mcfunction","");
-                        if (!newValidEntities.Contains(animationNamespace + ":" + trim + ":" + dataPack))newValidEntities.Add(animationNamespace + ":" + trim + ":" + dataPack);
+                    foreach (string function in callFunctions)
+                    {
+                        string trim = function.Replace(path2, "").Replace("\\call_part_function.mcfunction", "");
+                        if (!newValidEntities.Contains(animationNamespace + ":" + trim + ":" + dataPack)) newValidEntities.Add(animationNamespace + ":" + trim + ":" + dataPack);
                     }
                 }
             }
         }
         newValidEntities.Sort();
         validEntities = newValidEntities;
+        awaiting.RemoveAll(i => i == "entities");
+        awaiting.Add("entitiesDone");
     }
-    public void SetValidEntities() {
-        awaitingEntities = false;
-        if (addOnSelector.GetComponent<TMP_Dropdown>().value != 0) AddOnSelected();
+    private void GetMinecraftAssets()
+    {
+        awaiting.Add("assets");
+        string settingsPath = executionPath + "animator settings/";
+        string minecraftPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "/.minecraft/versions/";
+        if (File.Exists(minecraftPath + "version_manifest_v2.json"))
+        {
+            MinecraftVersionManifest versionManifest = JsonConvert.DeserializeObject<MinecraftVersionManifest>(File.ReadAllText(minecraftPath + "version_manifest_v2.json"));
+            string version = "";
+            versionManifest.latest.TryGetValue("release", out version);
+            minecraftPath = minecraftPath + version + "/" + version + ".jar";
+            if (File.Exists(minecraftPath))
+            {
+                bool extract = true;
+                if (File.Exists(settingsPath + "Minecraft Assets.txt")) {
+                    if (File.ReadAllText(settingsPath + "Minecraft Assets.txt") == version) extract = false;
+                }
+                if (extract)
+                {
+                    if (Directory.Exists(settingsPath + "Minecraft Assets")) Directory.Delete(settingsPath + "Minecraft Assets", true);
+                    Directory.CreateDirectory(settingsPath + "Minecraft Assets");
+                    if (File.Exists(settingsPath + "Minecraft Assets.txt")) File.Delete(settingsPath + "Minecraft Assets.txt");
+                    using (ZipArchive archive = ZipFile.OpenRead(minecraftPath))
+                    {
+                        foreach (ZipArchiveEntry entry in archive.Entries)
+                        {
+                            if (entry.FullName == "assets/minecraft/atlases/blocks.json" || entry.FullName.Contains("assets/minecraft/textures/") || entry.FullName.Contains("assets/minecraft/items/") || entry.FullName.Contains("assets/minecraft/models/"))
+                            {
+                                string folderPath = Regex.Replace(entry.FullName.Replace("assets", ""), "/[^/]+$", "");
+                                if (folderPath.Contains("/") || folderPath.Contains("\\"))
+                                {
+                                    List<string> extractFolders = folderPath.Split("/").ToList();
+                                    string folder = settingsPath + "Minecraft Assets";
+                                    extractFolders.RemoveAt(0);
+                                    foreach (string extractFolder in extractFolders)
+                                    {
+                                        folder = folder + "/" + extractFolder;
+                                        if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                                    }
+                                }
+                                entry.ExtractToFile(settingsPath + "Minecraft Assets/" + entry.FullName.Replace("assets/", ""));
+                            }
+                        }
+                    }
+                }
+                MinecraftAtlas.vanillaSources = JsonConvert.DeserializeObject<MinecraftAtlas>(File.ReadAllText(settingsPath + "Minecraft Assets/minecraft/atlases/blocks.json")).sources;
+                File.WriteAllText(settingsPath + "Minecraft Assets.txt", version);
+            }
+            else
+            {
+                Debug.Log("Cannot find latest Minecraft release");
+            }
+        }
+        else
+        {
+            Debug.Log("Cannot find Minecraft version manifest");
+        }
+        awaiting.RemoveAll(i => i == "assets");
     }
     public void AddOnSelected() {
         TMP_Dropdown dropdown = addOnSelector.GetComponent<TMP_Dropdown>();
@@ -222,7 +306,7 @@ public class Main : MonoBehaviour
             entityID = selectedAnimationGroup.Split(":");
             string entity = validEntities.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
             entityID = entity.Split(":");
-            GetSpawnFunction(entityID);
+            GetSpawnFunction(entityID, false);
             TMP_Dropdown animationDropdown = animationSelector.GetComponent<TMP_Dropdown>();
             animationDropdown.options.Clear();
             animationDropdown.options.Add(new TMP_Dropdown.OptionData("Select animation"));
@@ -240,13 +324,22 @@ public class Main : MonoBehaviour
                 }
             }
             animationSelector.GetComponent<TMP_Dropdown>().interactable = true;
-            editModelsButton.GetComponent<Button>().interactable = true;
+            changeFunctionButton.GetComponent<Button>().interactable = true;
             animationDropdown.value = 0;
             animationDropdown.RefreshShownValue();
-            editModelsTab.SetActive(false);
         }
     }
-    private void GetSpawnFunction(string[] ID) {
+
+    public void PressChangeFunctionButton()
+    {
+        TMP_Dropdown dropdown = animationGroupSelector.GetComponent<TMP_Dropdown>();
+        selectedAnimationGroup = dropdown.options[dropdown.value].text;
+        entityID = selectedAnimationGroup.Split(":");
+        string entity = validEntities.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
+        entityID = entity.Split(":");
+        GetSpawnFunction(entityID, true);
+    }
+    private void GetSpawnFunction(string[] ID, bool force) {
         string path = worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/";
         AnimatorSettings animatorSettings = new();
         if (File.Exists(executionPath + "animator settings/" + selectedWorld + ".json")) {
@@ -262,7 +355,7 @@ public class Main : MonoBehaviour
                 break;
             }
         }
-        if (spawn_function == "" || !File.Exists(path + spawn_function)) {
+        if (spawn_function == "" || !File.Exists(path + spawn_function) || force) {
             string title = "Select Spawn Function";
             spawn_function = EditorUtility.OpenFilePanel(title, path, "mcfunction");
             if (spawn_function.Contains(path)) spawn_function = spawn_function.Replace(path,"");
@@ -279,9 +372,11 @@ public class Main : MonoBehaviour
     }
     private void ReadSpawnFunction(string spawn_function)
     {
+        MinecraftModel.ClearMemory();
         mapEntity = new();
         foreach (string line in File.ReadLines(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/" + spawn_function))
         {
+            //TODO: read full entity data, regardless of formatting
             string item = "";
             if (line.Contains("summon minecraft:armor_stand"))
             {
@@ -327,7 +422,7 @@ public class Main : MonoBehaviour
                     minecraftItem.Parse(item);
                     entityPart.minecraft_item = minecraftItem;
                 }
-                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
+                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/", executionPath + "animator settings/Minecraft Assets/");
                 mapEntity.model_parts.Add(entityPart);
             }
             if (line.Contains("summon minecraft:item_display"))
@@ -356,28 +451,29 @@ public class Main : MonoBehaviour
                     minecraftItem.Parse(cutLine.Substring(0, characters));
                     entityPart.minecraft_item = minecraftItem;
                 }
-                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
+                entityPart.ParseItemModel(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/", executionPath + "animator settings/Minecraft Assets/");
                 mapEntity.model_parts.Add(entityPart);
             }
         }
-        MinecraftModel.ParseModels(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/");
+        MinecraftModel.ParseModels(worldsPath + selectedWorldRoot + "/" + selectedWorld + " Resource Pack/", executionPath + "animator settings/Minecraft Assets/");
+        CreateModel();
     }
     private void ClearModel() {
-        parts = new();
-        if (modelParts == null) modelParts = new();
-        if (modelParts.Count != 0) {
-            foreach (GameObject modelPart in modelParts) {
-                Destroy(modelPart);
-            }
-            modelParts.Clear();
-        }
+        modelDisplay.GetComponent<ModelDisplay>().DeleteModel();
         SetSelectedModelPart(null);
         ClearFieldToggles();
         selectedAnimationGroup = null;
         animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
-        editModelsButton.GetComponent<Button>().interactable = false;
-        editModelsTab.SetActive(false);
+        changeFunctionButton.GetComponent<Button>().interactable = false;
+    }
+    private void CreateModel() {
+        modelDisplay.GetComponent<ModelDisplay>().GenerateModels(mapEntity.model_parts);
+        SetSelectedModelPart(null);
+        ClearFieldToggles();
+        animationSelector.GetComponent<TMP_Dropdown>().interactable = true;
+        animationSelector.GetComponent<TMP_Dropdown>().value = 0;
+        changeFunctionButton.GetComponent<Button>().interactable = true;
     }
     private void GetListOfParts(string path, string[] ID) {
         ClearModel();
@@ -417,7 +513,7 @@ public class Main : MonoBehaviour
             foreach (OLDModelPart part in parts) {
                 partQueue.Add(part.GetName());
             }
-            List<string> selectedFiles = SelectModelFiles(partQueue);
+            List<string> selectedFiles = null;//SelectModelFiles(partQueue);
             if (selectedFiles.Count != 0) {
                 foreach (OLDModelPart part in parts) {
                     string[] model = {selectedFiles[0]};
@@ -434,7 +530,7 @@ public class Main : MonoBehaviour
                 cancel = true;
                 animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
                 animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                editModelsButton.GetComponent<Button>().interactable = false;
+                changeFunctionButton.GetComponent<Button>().interactable = false;
             }
         }
         if (!cancel) {
@@ -492,7 +588,7 @@ public class Main : MonoBehaviour
                                 if (split[0] != "") CreateTagToggles(split[0]);
                                 if (scores != "") CreateScoreToggles(scores);
                                 if (!part.VariantExists(modelPiece)) {
-                                    string selectedFile = SelectModelFile(part.GetName(), modelPiece);
+                                    string selectedFile = null;//SelectModelFile(part.GetName(), modelPiece);
                                     if (selectedFile != "") {
                                         string[] model = {selectedFile};
                                         part.SetModel(model, modelPiece);
@@ -521,7 +617,7 @@ public class Main : MonoBehaviour
                 else {
                     animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
                     animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                    editModelsButton.GetComponent<Button>().interactable = false;
+                    changeFunctionButton.GetComponent<Button>().interactable = false;
                     break;
                 }
             }
@@ -588,7 +684,6 @@ public class Main : MonoBehaviour
         foreach (GameObject toggle in fieldToggles) {
             if (toggle.GetComponent<Toggle>() != null && toggle.GetComponent<Toggle>().isOn) enabledTags.Add(toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text);
         }
-        editModelsTab.SetActive(false);
         foreach (GameObject modelPart in modelParts) {
             modelPart.GetComponent<OLDModelDisplay>().GetState();
         }
@@ -664,450 +759,6 @@ public class Main : MonoBehaviour
         {
             outputFile.WriteLine(JsonConvert.SerializeObject(savedEntities,Formatting.Indented));
         }
-    }
-
-    private string SelectModelFile(string part, string variant) {
-        string modelDirectory = worldsPath+selectedWorldRoot+"/";
-        if (Directory.Exists(modelDirectory+selectedWorld+" Resource Pack/assets/")) {
-            modelDirectory = modelDirectory+selectedWorld+" Resource Pack/assets/";
-            if (Directory.Exists(modelDirectory+entityID[0]+"/models")) modelDirectory = modelDirectory+entityID[0]+"/models";
-        }
-        string selectedFile;
-        string title = "Select Model File";
-        if (variant != "" && variant != "default" && part == "") title = "Select Model File For Variant \"" + variant + "\"";
-        else if ((variant == "" || variant == "default") && part != "") title = "Select Model File For Part \"" + part + "\"";
-        else if (variant != "" && variant != "default" && part != "") title = "Select Model File For Part \"" + part + "\" Variant \"" + variant + "\"";
-        //while (true) {
-            selectedFile = EditorUtility.OpenFilePanel(title, modelDirectory, "json");
-            if (selectedFile == "") {
-                return selectedFile;
-            }
-            string[] filePath = selectedFile.Split("/");
-            string file = filePath[filePath.Length-1];
-            modelDirectory = selectedFile.Remove(selectedFile.Length-file.Length);
-            if (selectedFile.Contains("/models/")) return selectedFile;
-            throw new Exception();
-        //}
-    }
-
-    private List<string> SelectModelFiles(List<string> parts) {
-        List<string> files = new();
-        string modelDirectory = worldsPath+selectedWorld+"/";
-        if (Directory.Exists(modelDirectory+selectedWorld+" Resource Pack/assets/")) {
-            modelDirectory = modelDirectory+selectedWorld+" Resource Pack/assets/";
-            if (Directory.Exists(modelDirectory+entityID[0]+"/models")) modelDirectory = modelDirectory+entityID[0]+"/models";
-        }
-        string selectedFile;
-        foreach (string part in parts) {
-            string title = "Select Model File";
-            if (part != "") title = "Select Model File For Part \"" + part + "\"";
-            while (true) {
-                selectedFile = EditorUtility.OpenFilePanel(title, modelDirectory, "json");
-                if (selectedFile == "") {
-                    break;
-                }
-                string[] filePath = selectedFile.Split("/");
-                string file = filePath[filePath.Length-1];
-                modelDirectory = selectedFile.Remove(selectedFile.Length-file.Length);
-                if (selectedFile.Contains("/models/")) break;
-            }
-            if (selectedFile != "") {
-                files.Add(selectedFile);
-            }
-            else {
-                files.Clear();
-                break;
-            }
-        }
-        return files;
-    }
-
-    public void PressEditModelsButton() {
-        ModelToDefault();
-        if (editModelsTab.activeSelf) editModelsTab.SetActive(false);
-        else {
-            editModelsTab.SetActive(true);
-            TMP_Dropdown dropdown = editModelsPartSelector.GetComponent<TMP_Dropdown>();
-            editModelPart = null;
-            dropdown.value = 0;
-            dropdown.options.Clear();
-            TMP_Dropdown variantDropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-            editModelVariant = "default";
-            variantDropdown.value = 1;
-            variantDropdown.options.Clear();
-            variantDropdown.options.Add(new TMP_Dropdown.OptionData("Add model variant"));
-            TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-            editModelCompositeIndex = 0;
-            compositionDropdown.value = 1;
-            compositionDropdown.options.Clear();
-            compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-            if (singleModelObject) {
-                dropdown.interactable = false;
-                dropdown.options.Add(new TMP_Dropdown.OptionData("Single part model"));
-                variantDropdown.options.Add(new TMP_Dropdown.OptionData("Default"));
-                editModelPart = "";
-                foreach (OLDModelPart part in parts) {
-                    if (part.GetName() == editModelPart) {
-                        if (part.variants != null) {
-                            foreach (KeyValuePair<string,string[]> variant in part.variants) {
-                                variantDropdown.options.Add(new TMP_Dropdown.OptionData(variant.Key));
-                            }
-                        }
-                        for (int i = 0; i < part.GetModel().Length; i++) {
-                            compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                        }
-                        if (compositionDropdown.options.Count == 1) compositionDropdown.options.Add(new TMP_Dropdown.OptionData("No models specified"));
-                        break;
-                    }
-                }
-                editModelCompositeIndex = 0;
-                editModelsVariantSelector.GetComponent<TMP_Dropdown>().value = 1;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-                editModelsChangeButton.GetComponent<Button>().interactable = true;
-                editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                editModelsVariantSelector.GetComponent<TMP_Dropdown>().interactable = true;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().interactable = true;
-            }
-            else {
-                dropdown.interactable = true;
-                dropdown.options.Add(new TMP_Dropdown.OptionData("Select model part"));
-                foreach (OLDModelPart part in parts) {
-                    dropdown.options.Add(new TMP_Dropdown.OptionData(part.GetName()));
-                }
-                variantDropdown.options.Add(new TMP_Dropdown.OptionData("Select model variant"));
-                editModelsChangeButton.GetComponent<Button>().interactable = false;
-                editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                editModelsVariantSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().interactable = false;
-            }
-            SetSelectedModelName();
-        }
-    }
-    public void EditModelsPartSelected() {
-        TMP_Dropdown dropdown = editModelsPartSelector.GetComponent<TMP_Dropdown>();
-        ModelToDefault();
-        if (dropdown.value == 0) {
-            if (editModelPart != null) {
-                editModelPart = null;
-                TMP_Dropdown variantDropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-                variantDropdown.options.Clear();
-                variantDropdown.options.Add(new TMP_Dropdown.OptionData("Select model variant"));
-                editModelCompositeIndex = 0;
-                editModelsChangeButton.GetComponent<Button>().interactable = false;
-                editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                editModelsVariantSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().interactable = false;
-            }
-        }
-        else {
-            editModelPart = dropdown.options[dropdown.value].text;
-            TMP_Dropdown variantDropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-            variantDropdown.options.Clear();
-            variantDropdown.options.Add(new TMP_Dropdown.OptionData("Add model variant"));
-            variantDropdown.options.Add(new TMP_Dropdown.OptionData("Default"));
-            TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-            compositionDropdown.options.Clear();
-            compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                    if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                    if (part.variants != null) {
-                        foreach (KeyValuePair<string,string[]> variant in part.variants) {
-                            variantDropdown.options.Add(new TMP_Dropdown.OptionData(variant.Key));
-                        }
-                    }
-                    for (int i = 0; i < part.GetModel().Length; i++) {
-                        compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                    }
-                    if (compositionDropdown.options.Count == 1) compositionDropdown.options.Add(new TMP_Dropdown.OptionData("No models specified"));
-                    break;
-                }
-            }
-            editModelVariant = "default";
-            editModelsVariantSelector.GetComponent<TMP_Dropdown>().value = 1;
-            editModelCompositeIndex = 0;
-            editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-            editModelsChangeButton.GetComponent<Button>().interactable = true;
-            editModelsVariantSelector.GetComponent<TMP_Dropdown>().interactable = true;
-            editModelsCompositeSelector.GetComponent<TMP_Dropdown>().interactable = true;
-        }
-        SetSelectedModelName();
-    }
-    private void ModelToDefault() {
-        if (editModelPart != null) {
-            if (singleModelObject) modelParts[0].GetComponent<OLDModelDisplay>().GetState();
-            else {
-                foreach (GameObject modelPart in modelParts) {
-                    if (modelPart.name == editModelPart) modelPart.GetComponent<OLDModelDisplay>().GetState();
-                }
-            }
-        }
-        else {
-            foreach (GameObject modelPart in modelParts) {
-                modelPart.GetComponent<OLDModelDisplay>().GetState();
-            }
-        }
-        
-    }
-    public void EditModelsVariantSelected() {
-        TMP_Dropdown dropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-        TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-        if (dropdown.value == 0) {
-            dropdown.value = 1;
-            editModelVariant = "default";
-            compositionDropdown.options.Clear();
-            compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-            editModelsDeleteButton.GetComponent<Button>().interactable = true;
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                    for (int i = 0; i < part.GetModel().Length; i++) {
-                        compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                    }
-                    break;
-                }
-            }
-            RefreshModel(false);
-            editModelCompositeIndex = 0;
-            editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-            variantNamePopUp.SetActive(true);
-        }
-        else if (dropdown.value == 1) {
-            if (editModelVariant != "default") {
-                editModelVariant = "default";
-                compositionDropdown.options.Clear();
-                compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-                editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                foreach (OLDModelPart part in parts) {
-                    if (part.GetName() == editModelPart) {
-                        if (part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                        for (int i = 0; i < part.GetModel().Length; i++) {
-                            compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                        }
-                        break;
-                    }
-                }
-                RefreshModel(false);
-                editModelCompositeIndex = 0;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-            }
-        }
-        else {
-            editModelVariant = dropdown.options[dropdown.value].text;
-            compositionDropdown.options.Clear();
-            compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-            editModelsDeleteButton.GetComponent<Button>().interactable = true;
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    for (int i = 0; i < part.GetModel().Length; i++) {
-                        compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                    }
-                    break;
-                }
-            }
-            RefreshModel(false);
-            editModelCompositeIndex = 0;
-            editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-        }
-        SetSelectedModelName();
-    }
-    public void EditModelsCompositionSelected() {
-        TMP_Dropdown dropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-        if (dropdown.value == 0) {
-            if (dropdown.options.Count >= 2) {
-                editModelCompositeIndex = -1;
-                string selectedFile = SelectModelFile(editModelPart,editModelVariant);
-                if (selectedFile != "") {
-                    editModelsDeleteButton.GetComponent<Button>().interactable = true;
-                    foreach (OLDModelPart part in parts) {
-                        if (part.GetName() == editModelPart) {
-                            if (editModelVariant == "default") {
-                                part.SetModel(selectedFile, part.GetModel().Length + 1);
-                            }
-                            else {
-                                part.SetModel(selectedFile, part.GetModel().Length + 1, editModelVariant);
-                            }
-                            editModelCompositeIndex = part.GetModel(editModelVariant).Length - 1;
-                            dropdown.options.Add(new TMP_Dropdown.OptionData((part.GetModel().Length - 1).ToString()));
-                            dropdown.value = part.GetModel(editModelVariant).Length;
-                            break;
-                        }
-                    }
-                    RefreshModel(true);
-                    SaveModels();
-                }
-                else {
-                    editModelCompositeIndex = 0;
-                    dropdown.value = 1;
-                }
-            }
-        }
-        else {
-            editModelCompositeIndex = dropdown.value - 1;
-        }
-        SetSelectedModelName();
-    }
-    public void PressEditModelsChangeButton() {
-        string selectedFile = SelectModelFile(editModelPart,editModelVariant);
-        if (selectedFile != "") {
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    if (editModelVariant == "default") {
-                        part.SetModel(selectedFile, editModelCompositeIndex);
-                    }
-                    else {
-                        part.SetModel(selectedFile, editModelCompositeIndex, editModelVariant);
-                    }
-                    break;
-                }
-            }
-            RefreshModel(true);
-            SaveModels();
-        }
-        SetSelectedModelName();
-    }
-    public void PressEditModelsDeleteButton() {
-        TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-        compositionDropdown.options.Clear();
-        compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-        foreach (OLDModelPart part in parts) {
-            if (part.GetName() == editModelPart) {
-                if (editModelVariant == "default") {
-                    part.DeleteModel(editModelCompositeIndex);
-                }
-                else {
-                    part.DeleteModel(editModelCompositeIndex, editModelVariant);
-                    if (!part.VariantExists(editModelVariant)) {
-                        TMP_Dropdown variantDropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-                        variantDropdown.options.Clear();
-                        variantDropdown.options.Add(new TMP_Dropdown.OptionData("Add model variant"));
-                        variantDropdown.options.Add(new TMP_Dropdown.OptionData("Default"));
-                        if (part.variants != null) {
-                            foreach (KeyValuePair<string,string[]> variant in part.variants) {
-                                variantDropdown.options.Add(new TMP_Dropdown.OptionData(variant.Key));
-                            }
-                        }
-                        editModelVariant = "default";
-                        editModelsVariantSelector.GetComponent<TMP_Dropdown>().value = 1;
-                    }
-                }
-                for (int i = 0; i < part.GetModel().Length; i++) {
-                    compositionDropdown.options.Add(new TMP_Dropdown.OptionData(i.ToString()));
-                }
-                editModelCompositeIndex = 0;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-                if (editModelVariant == "default" && part.model.Length == 1) editModelsDeleteButton.GetComponent<Button>().interactable = false;
-                break;
-            }
-        }
-        SaveModels();
-        RefreshModel(true);
-        SetSelectedModelName();
-    }
-
-    private void RefreshModel(bool regenerate) {
-        if (singleModelObject) {
-            if (regenerate) modelParts[0].GetComponent<OLDModelDisplay>().SetModel(parts[0].variants, parts[0].model, editModelVariant);
-            else modelParts[0].GetComponent<OLDModelDisplay>().SetVisibleVariant(editModelVariant);
-        }
-        else {
-            foreach (GameObject modelPart in modelParts) {
-                if (modelPart.name == editModelPart) {
-                    foreach (OLDModelPart part in parts) {
-                        if (part.GetName() == editModelPart) {
-                            if (regenerate) modelPart.GetComponent<OLDModelDisplay>().SetModel(part.variants, part.model, editModelVariant);
-                            else modelPart.GetComponent<OLDModelDisplay>().SetVisibleVariant(editModelVariant);
-                            break;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    private void SetSelectedModelName() {
-        editModelsSelectedText.GetComponent<TMP_Text>().text = "No model selected";
-        if (editModelPart != null) {
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    if (editModelVariant == "default") {
-                        editModelsSelectedText.GetComponent<TMP_Text>().text = part.GetModel(editModelCompositeIndex);
-                    }
-                    else {
-                        editModelsSelectedText.GetComponent<TMP_Text>().text = part.GetModel(editModelCompositeIndex, editModelVariant);
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    public void VariantNamePopUpModify() {
-        variantNamePopUpButton.GetComponent<Button>().interactable = true;
-        variantNamePopUpError.SetActive(false);
-        string name = variantNamePopUpInput.GetComponent<TMP_InputField>().text.ToLower().Replace(" ","_");
-        if (name == "") {
-            variantNamePopUpButtonText.GetComponent<TMP_Text>().text = "Cancel";
-        }
-        else {
-            variantNamePopUpButtonText.GetComponent<TMP_Text>().text = "Confirm";
-            if (name == "default") {
-                variantNamePopUpError.SetActive(true);
-                variantNamePopUpButton.GetComponent<Button>().interactable = false;
-                return;
-            }
-            foreach (OLDModelPart part in parts) {
-                if (part.GetName() == editModelPart) {
-                    if (part.variants != null) {
-                        foreach (KeyValuePair<string,string[]> variant in part.variants) {
-                            if (variant.Key == name) {
-                                variantNamePopUpError.SetActive(true);
-                                variantNamePopUpButton.GetComponent<Button>().interactable = false;
-                                return;
-                            }
-                        }
-                    }
-                    return;
-                }
-            }
-        }
-    }
-    public void VariantNamePopUpConfirm() {
-        if (variantNamePopUpInput.GetComponent<TMP_InputField>().text != "") {
-            TMP_Dropdown dropdown = editModelsVariantSelector.GetComponent<TMP_Dropdown>();
-            TMP_Dropdown compositionDropdown = editModelsCompositeSelector.GetComponent<TMP_Dropdown>();
-            bool fullbreak = false;
-            List<string> model = new();
-            string name = variantNamePopUpInput.GetComponent<TMP_InputField>().text.ToLower().Replace(" ","_");
-            string selectedFile = SelectModelFile(editModelPart,editModelVariant);
-            if (selectedFile == "") {
-                fullbreak = true;
-            }
-            else {
-                model.Add(selectedFile);
-            }
-            if (!fullbreak) {
-                compositionDropdown.options.Clear();
-                compositionDropdown.options.Add(new TMP_Dropdown.OptionData("Add another model"));
-                compositionDropdown.options.Add(new TMP_Dropdown.OptionData("0"));
-                foreach (OLDModelPart part in parts) {
-                    if (part.GetName() == editModelPart) {
-                        if (part.variants == null) part.variants = new();
-                        part.variants.Add(name,model.ToArray());
-                        break;
-                    }
-                }
-                SaveModels();
-                editModelCompositeIndex = 0;
-                editModelsCompositeSelector.GetComponent<TMP_Dropdown>().value = 1;
-                dropdown.options.Add(new TMP_Dropdown.OptionData(name));
-                dropdown.value = dropdown.options.Count - 1;
-            }
-        }
-        variantNamePopUpInput.GetComponent<TMP_InputField>().text = "";
-        variantNamePopUpButtonText.GetComponent<TMP_Text>().text = "Cancel";
-        variantNamePopUpError.SetActive(false);
-        variantNamePopUp.SetActive(false);
     }
     public void SetSelectedModelPart(GameObject selectedModelPart) {
         if (this.selectedModelPart != selectedModelPart) {

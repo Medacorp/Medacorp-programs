@@ -1,8 +1,19 @@
+17-5-2025:
+* Extracting vanilla assets is now threaded
+* Added loading message for extracting vanilla assets, and fetching animation groups
+* Texture atlas now only takes the textures used by the current entity, optimizing it greatly
+* model pieces spawn in once again (but don't have offsets); reminder that ghosts'default data is invisible, so no models will show upon selecting them
+* models now get their tints from the items, meaning a purple bat is actually purple now
+
+16-5-2025:
+* Replaced edit model button with change spawn function button
+* Fix some mesh generator index out of bounds errors
+
 4-4-2025:
 * Meshes are now generated upon running MinecraftModel.ParseModels(string); no parts spawned in yet still
 
 31-3-2025:
-* Broke the program to rewrite it; model parts are no longer spawned in
+* Broke the Animator program to rewrite it; model parts are no longer spawned in
 * Animator texture atlas is now global, and takes in both the vanilla and custom textures defined by Minecraft's blocks atlas
 * Prompt upon selecting animation group now asks for a spawn function, instead of model files
 ** Spawn function is read, and a part is memorized for every line that contains an item (be it armor stand or item display)

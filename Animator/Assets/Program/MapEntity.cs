@@ -32,9 +32,9 @@ public class MapEntity {
 public class MapEntityPart {
     public string[] tags = {};
     public MinecraftItem minecraft_item = null;
-    public void ParseItemModel(string path)
+    public void ParseItemModel(string path, string minecraftPath)
     {
-        if (minecraft_item != null) minecraft_item.ParseItemModel(path);
+        if (minecraft_item != null) minecraft_item.ParseItemModel(path, minecraftPath);
     }
     public List<string> GetItemModels()
     {
@@ -92,58 +92,73 @@ public class MinecraftItem {
         return new();
     }
 
-    public void ParseItemModel(string path)
+    public void ParseItemModel(string path, string minecraftPath)
     {
         if (!MinecraftModel.itemsFiles.ContainsKey(item_model))
         {
-            string[] split = item_model.Split(':');
-            if (split[0] == "") split[0] = "minecraft";
+            string[] split = { "minecraft", "" };
+            if (item_model.Contains(":")) split = item_model.Split(':');
+            else split[1] = item_model;
+            MinecraftItemsFile itemsFile = JsonConvert.DeserializeObject<MinecraftItemsFile>("{\"model\":{\"type\":\"minecraft:model\",\"model\":\"minecraft:missingno\"}}");
             if (File.Exists(path + "assets/" + split[0] + "/items/" + split[1] + ".json"))
             {
-                MinecraftItemsFile itemsFile = JsonConvert.DeserializeObject<MinecraftItemsFile>(File.ReadAllText(path + "assets/" + split[0] + "/items/" + split[1] + ".json").Replace("\"default\"","\"value\""));
-                itemsFile.Parse();
-                MinecraftModel.itemsFiles.Add(item_model, itemsFile);
+                itemsFile = JsonConvert.DeserializeObject<MinecraftItemsFile>(File.ReadAllText(path + "assets/" + split[0] + "/items/" + split[1] + ".json").Replace("\"default\"", "\"value\""));
             }
-
+            else if (File.Exists(minecraftPath + split[0] + "/items/" + split[1] + ".json"))
+            {
+                itemsFile = JsonConvert.DeserializeObject<MinecraftItemsFile>(File.ReadAllText(minecraftPath + split[0] + "/items/" + split[1] + ".json").Replace("\"default\"", "\"value\""));
+            }
+            itemsFile.Parse();
+            MinecraftModel.itemsFiles.Add(item_model, itemsFile);
         }
     }
 
     public void Parse(string SNBT) {
+        //TODO: read/parse full item data, regardless of formatting
         if (SNBT.Contains("\"minecraft:dyed_color\":")) dyed_color = Convert.ToInt32(SNBT.Split("\"minecraft:dyed_color\":")[1].Split(",")[0]);
         if (SNBT.Contains("\"minecraft:item_model\":\"")) item_model = SNBT.Split("\"minecraft:item_model\":\"")[1].Split("\"")[0];
         else if (SNBT.Contains("id:\"")) item_model = SNBT.Split("id:\"")[1].Split("\"")[0];
-        if (SNBT.Contains("\"minecraft:custom_model_data\":{")) {
+        if (SNBT.Contains("\"minecraft:custom_model_data\":{"))
+        {
             string cutLine = SNBT.Split("\"minecraft:custom_model_data\":{")[1].Split("}")[0];
-            if (cutLine.Contains("flags:[")) {
+            if (cutLine.Contains("flags:["))
+            {
                 string tags = SNBT.Split("flags:[")[1].Split("b]")[0];
                 string[] flags = tags.Split("b,");
                 this.flags = new();
-                foreach (string flag in flags) {
+                foreach (string flag in flags)
+                {
                     if (flag == "0") this.flags.Add(false);
                     else this.flags.Add(true);
                 }
             }
-            if (cutLine.Contains("floats:[")) {
+            if (cutLine.Contains("floats:["))
+            {
                 string tags = SNBT.Split("floats:[")[1].Split("f]")[0];
                 string[] floats = tags.Split("f,");
                 this.floats = new();
-                foreach (string f in floats) {
+                foreach (string f in floats)
+                {
                     this.floats.Add(float.Parse(f));
                 }
             }
-            if (cutLine.Contains("strings:[")) {
+            if (cutLine.Contains("strings:["))
+            {
                 string tags = SNBT.Split("strings:[\"")[1].Split("\"]")[0];
                 string[] strings = tags.Split("\",\"");
                 this.strings = new();
-                foreach (string s in strings) {
+                foreach (string s in strings)
+                {
                     this.strings.Add(s);
                 }
             }
-            if (cutLine.Contains("colors:[")) {
+            if (cutLine.Contains("colors:["))
+            {
                 string tags = SNBT.Split("colors:[")[1].Split("]")[0];
                 string[] colors = tags.Split(",");
                 this.colors = new();
-                foreach (string c in colors) {
+                foreach (string c in colors)
+                {
                     this.colors.Add(Convert.ToInt32(c));
                 }
             }
