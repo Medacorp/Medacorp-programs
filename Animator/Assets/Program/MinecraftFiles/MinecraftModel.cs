@@ -71,7 +71,7 @@ public class MinecraftModel
                     new(from[0],to[1],from[2]),
                     new(from[0],to[1],to[2])
                 };
-                if (element.GetRotationAngle() != 0)
+                if (element.HasRotation())
                 {
                     List<Vector3> newpoints = new();
                     float[] angles = element.GetRotationEulerAngle();
@@ -501,19 +501,21 @@ public class MinecraftModelElement {
         }
         return origin;
     }
-    public float GetRotationAngle() {
-        float angle = 0;
-        if (rotation != null) {
-            angle = rotation.angle;
-        }
-        return angle;
+    public bool HasRotation() {
+        return (rotation != null);
     }
     public float[] GetRotationEulerAngle() {
         float[] angles = {0,0,0};
         if (rotation != null) {
             if (rotation.axis == 'x') angles[0] = rotation.angle;
             else if (rotation.axis == 'y') angles[1] = rotation.angle;
-            else angles[2] = rotation.angle;
+            else if (rotation.axis == 'z') angles[2] = rotation.angle;
+            else
+            {
+                angles[0] = rotation.x;
+                angles[1] = rotation.y;
+                angles[2] = rotation.z;
+            }
         }
         return angles;
     }
@@ -525,6 +527,9 @@ public class MinecraftModelElement {
 public class MinecraftModelRotation {
 
     public float angle;
+    public float x;
+    public float y;
+    public float z;
     public char axis;
     public float[] origin;
 

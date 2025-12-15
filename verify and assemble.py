@@ -214,9 +214,9 @@ while True:
                 #Check level.dat
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
-                for tag in nbtfile["Data"]["GameRules"].tags:
-                    if tag.name == "sendCommandFeedback" and tag.value == "true":
-                        write("VERIFY: Game rule sendCommandFeedback is set to true")
+                for tag in nbtfile["Data"]["game_rules"].tags:
+                    if tag.name == "minecraft:send_command_feedback" and tag.value == 1:
+                        write("VERIFY: Game rule \"minecraft:send_command_feedback\" is set to true")
                         succeed = False
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "allowCommands" and tag.value == 1:
@@ -345,10 +345,10 @@ while True:
                     nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                     nbtfile.name = 'level'
                     modify = False
-                    for tag in nbtfile["Data"]["GameRules"].tags:
-                        if tag.name == "sendCommandFeedback" and tag.value == "false":
-                            tag.value = "true"
-                            write("UNLOCK: Game rule sendCommandFeedback set to true")
+                    for tag in nbtfile["Data"]["game_rules"].tags:
+                        if tag.name == "minecraft:send_command_feedback" and tag.value == 0:
+                            tag.value = 1
+                            write("UNLOCK: Game rule \"minecraft:send_command_feedback\" set to true")
                             modify = True
                     for tag in nbtfile["Data"].tags:
                         if tag.name == "allowCommands" and tag.value == 0:
@@ -372,10 +372,10 @@ while True:
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
                 modify = False
-                for tag in nbtfile["Data"]["GameRules"].tags:
-                    if tag.name == "sendCommandFeedback" and tag.value == "true":
-                        tag.value = "false"
-                        write("RESET: Game rule sendCommandFeedback set to false")
+                for tag in nbtfile["Data"]["game_rules"].tags:
+                    if tag.name == "minecraft:send_command_feedback" and tag.value == 1:
+                        tag.value = 0
+                        write("RESET: Game rule \"minecraft:send_command_feedback\" set to false")
                         modify = True
                 for tag in nbtfile["Data"].tags:
                     if tag.name == "allowCommands" and tag.value == 1:
