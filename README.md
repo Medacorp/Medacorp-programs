@@ -1,5 +1,5 @@
 # Wold Manager.py
-Auto assemble world downloads, and verify everything is in a reset state.
+Auto assemble world downloads, verify everything is reset, reset, enable cheats, generate upside down language files, etc.
 Reset includes:
 * Remove command storage
 * Remove scoreboard/team data
@@ -29,10 +29,10 @@ Implemented:
 * Selecting (Composite) model files per part (variant)
 * Saving selected models to file so that you're not asked every time you select that animation group
 * Models get data from parent (and parent's parent's, and parent's parent's parent's, and....)
-* Rendering selected models with offsets defined by animation group
 
 To implement:
 * 1.21.11 support; the split texture atlas
+* Rendering selected models with offsets defined by animation group
 * Add checkbox for toggling between armor stand and item display
 * - toggle built-in offset
 * - toggle between just rotating, and all kinds of changes to the model transform

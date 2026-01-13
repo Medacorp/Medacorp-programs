@@ -1,3 +1,7 @@
+13-1-2026:
+* Fixed the upsidedown command doesn't handle %s correctly
+* Fixed wrong upside down character for J
+
 12-1-2026:
 * Renamed "verify and assemble" to "World Manager"
 * Added a reminder to update translations in the "World Manager" build program
@@ -9,7 +13,7 @@
 * Extracting vanilla assets is now threaded
 * Added loading message for extracting vanilla assets, and fetching animation groups
 * Texture atlas now only takes the textures used by the current entity, optimizing it greatly
-* model pieces spawn in once again (but don't have offsets); reminder that ghosts'default data is invisible, so no models will show upon selecting them
+* model pieces spawn in once again (but don't have offsets); reminder that ghosts' default data is invisible, so no models will show upon selecting them
 * models now get their tints from the items, meaning a purple bat is actually purple now
 
 16-5-2025:

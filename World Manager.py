@@ -626,8 +626,16 @@ while True:
                                 for line in source: 
                                     comma = False
                                     upsidedownLine = ""
+                                    line = line.replace("\n","").replace("\r","")
                                     if line.startswith("{") == False and line.startswith("}") == False:
-                                        line = line.replace("\n","").replace("\r","")
+                                        line = line.replace("%%","__PERCENTAGEPLACEHOLDER__")
+                                        if line.count("%s") >= 2:
+                                            counter = 1
+                                            while "%s" in line:
+                                                line = line.replace("%s","%"+str(counter)+"$s",1)
+                                                counter += 1
+                                        line = line.replace("__PERCENTAGEPLACEHOLDER__","%%")
+                                        line = line.replace("\\\"", "\"")
                                         if line.endswith(","):
                                             comma = True
                                             line = line[:-2]
@@ -652,6 +660,7 @@ while True:
                                             else:
                                                 upsidedownLine = charMap[tmp] + upsidedownLine
                                             j += 1
+                                        line = line.replace("%%","__PERCENTAGEPLACEHOLDER__")
                                         upsidedownLine = upsidedownLine.replace("s%", "%s")
                                         upsidedownLine = upsidedownLine.replace("s$\u295d%", "%1$s")
                                         upsidedownLine = upsidedownLine.replace("s$\u1614%", "%2$s")
@@ -662,7 +671,7 @@ while True:
                                         upsidedownLine = upsidedownLine.replace("s$\u3125%", "%7$s")
                                         upsidedownLine = upsidedownLine.replace("s$8%", "%8$s")
                                         upsidedownLine = upsidedownLine.replace("s$6%", "%9$s")
-                                        upsidedownLine = upsidedownLine.replace("„\\", "„")
+                                        line = line.replace("__PERCENTAGEPLACEHOLDER__","%%")
                                         line = splitLine[0] + "\": \"" + upsidedownLine + "\""
                                         if comma: line = line + ","
                                     target.write(line + "\n")
