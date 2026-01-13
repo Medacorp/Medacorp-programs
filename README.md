@@ -1,4 +1,4 @@
-# verify and assemble.py
+# Wold Manager.py
 Auto assemble world downloads, and verify everything is in a reset state.
 Reset includes:
 * Remove command storage
@@ -32,6 +32,7 @@ Implemented:
 * Rendering selected models with offsets defined by animation group
 
 To implement:
+* 1.21.11 support; the split texture atlas
 * Add checkbox for toggling between armor stand and item display
 * - toggle built-in offset
 * - toggle between just rotating, and all kinds of changes to the model transform

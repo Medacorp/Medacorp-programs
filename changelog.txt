@@ -1,3 +1,10 @@
+12-1-2026:
+* Renamed "verify and assemble" to "World Manager"
+* Added a reminder to update translations in the "World Manager" build program
+* Added upside down language generator to "World Manager", and accompanying "upside down characters.txt"
+** If a missing character is found, it asks what to treat it as, it'll then append the file with the missing character to it's replacement mapping
+** This can be skipped by pressing Esc and inserts the character as-is
+
 17-5-2025:
 * Extracting vanilla assets is now threaded
 * Added loading message for extracting vanilla assets, and fetching animation groups

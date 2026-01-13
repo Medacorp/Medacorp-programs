@@ -11,16 +11,19 @@ def verifyDimensions(folder: str, namespace: str, ID: str) -> bool:
         else:
             newID = ID + "/" + dID
         if os.path.isfile(os.path.join(folder + "/" + dID + "/data/chunks.dat")):
-            write("VERIFY: Dimension " + namespace + ":" + newID + " has forceloaded chunks")
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has forceloaded chunks")
             succeed = False
         if os.path.isfile(os.path.join(folder + "/" + dID + "/data/raids.dat")):
-            write("VERIFY: Dimension " + namespace + ":" + newID + " has raids")
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has raids")
+            succeed = False
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/world_border.dat")):
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has world border")
             succeed = False
         if os.path.isdir(os.path.join(folder + "/" + dID + "/entities")):
-            write("VERIFY: Dimension " + namespace + ":" + newID + " has entity files")
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has entity files")
             succeed = False
         if os.path.isdir(os.path.join(folder + "/" + dID + "/poi")):
-            write("VERIFY: Dimension " + namespace + ":" + newID + " has POI files")
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has POI files")
             succeed = False
         subSucceed = verifyDimensions(folder + "/" + dID, namespace, newID)
         if (subSucceed == False): succeed = False
@@ -32,16 +35,19 @@ def resetDimensions(folder: str, namespace: str, ID: str):
         else:
             newID = ID + "/" + dID
         if os.path.isfile(os.path.join(folder + "/" + dID + "/data/chunks.dat")):
-            write("RESET: Dimension " + namespace + ":" + newID + " had its forceloaded chunks deleted")
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its forceloaded chunks deleted")
             os.remove(os.path.join(folder + "/" + dID + "/data/chunks.dat"))
         if os.path.isfile(os.path.join(folder + "/" + dID + "/data/raids.dat")):
-            write("RESET: Dimension " + namespace + ":" + newID + " had its raids deleted")
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its raids deleted")
             os.remove(os.path.join(folder + "/" + dID + "/data/raids.dat"))
+        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/world_border.dat")):
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its world border deleted")
+            os.remove(os.path.join(folder + "/" + dID + "/data/world_border.dat"))
         if os.path.isdir(os.path.join(folder + "/" + dID + "/entities")):
-            write("RESET: Dimension " + namespace + ":" + newID + " had its entity files deleted")
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its entity files deleted")
             shutil.rmtree(os.path.join(folder + "/" + dID + "/entities"))
         if os.path.isdir(os.path.join(folder + "/" + dID + "/poi")):
-            write("RESET: Dimension " + namespace + ":" + newID + " had its POI files deleted")
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its POI files deleted")
             shutil.rmtree(os.path.join(folder + "/" + dID + "/poi"))
         resetDimensions(folder + "/" + dID, namespace, newID)
 
@@ -116,6 +122,7 @@ while True:
     useEnd = False
     unlocked = False
     verifySucceeded = False
+    upsidedownUpdated = False
     alreadyBuild = False
     mapSet = 0
     if selected == "!":
@@ -179,6 +186,7 @@ while True:
             if verifySucceeded == False: 
                 write("* \"verify\"")
                 write("* \"reset\"")
+            if upsidedownUpdated == False: write("* \"upsidedown\"")
             if alreadyBuild == False: write("* \"build\"")
             selected = input().lower()
             if selected == "stop":
@@ -186,7 +194,7 @@ while True:
                 break
             elif selected == "rules":
                 write("Rules:")
-                write("* Game rule sendCommandFeedback set to false")
+                write("* Game rule \"minecraft:send_command_feedback\" set to false")
                 write("* Cheats disabled")
                 write("* No player data remaining")
                 write("* No save progress remaining")
@@ -282,52 +290,64 @@ while True:
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")):
                     write("VERIFY: Scoreboard data is still in world data")
                     succeed = False
+                if os.path.isfile(os.path.join(path + map + "/data/stopwatches.dat")):
+                    write("VERIFY: Stopwatch data is still in world data")
+                    succeed = False
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
                         fileName = file.removeprefix("command_storage_").removesuffix(".dat")
                         write("VERIFY: Command storage \"" + fileName + "\" is still in world data")
                         succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/chunks.dat")):
-                    write("VERIFY: Dimension minecraft:overworld has forceloaded chunks")
+                    write("VERIFY: Dimension \"minecraft:overworld\" has forceloaded chunks")
+                    succeed = False
+                if os.path.isfile(os.path.join(path + map + "/data/world_border.dat")):
+                    write("VERIFY: Dimension \"minecraft:overworld\" has world border")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/data/raids.dat")):
-                    write("VERIFY: Dimension minecraft:overworld has raids")
+                    write("VERIFY: Dimension \"minecraft:overworld\" has raids")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/entities")):
-                    write("VERIFY: Dimension minecraft:overworld has entity files")
+                    write("VERIFY: Dimension \"minecraft:overworld\" has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/poi")):
-                    write("VERIFY: Dimension minecraft:overworld has POI files")
+                    write("VERIFY: Dimension \"minecraft:overworld\" has POI files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1")) and useNether == False:
-                    write("VERIFY: Dimension minecraft:the_nether has files")
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has files")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/chunks.dat")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has forceloaded chunks")
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has forceloaded chunks")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/raids.dat")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has raids")
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has raids")
+                    succeed = False
+                if os.path.isfile(os.path.join(path + map + "/DIM-1/data/world_border.dat")) and useNether:
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has world border")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/entities")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has entity files")
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/poi")) and useNether:
-                    write("VERIFY: Dimension minecraft:the_nether has POI files")
+                    write("VERIFY: Dimension \"minecraft:the_nether\" has POI files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1")) and useEnd == False:
-                    write("VERIFY: Dimension minecraft:the_end has files")
+                    write("VERIFY: Dimension \"minecraft:the_end\" has files")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/chunks.dat")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has forceloaded chunks")
+                    write("VERIFY: Dimension \"minecraft:the_end\" has forceloaded chunks")
                     succeed = False
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/raids.dat")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has raids")
+                    write("VERIFY: Dimension \"minecraft:the_end\" has raids")
+                    succeed = False
+                if os.path.isfile(os.path.join(path + map + "/DIM1/data/world_border.dat")) and useEnd:
+                    write("VERIFY: Dimension \"minecraft:the_end\" has world border")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1/entities")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has entity files")
+                    write("VERIFY: Dimension \"minecraft:the_end\" has entity files")
                     succeed = False
                 if os.path.isdir(os.path.join(path + map + "/DIM1/poi")) and useEnd:
-                    write("VERIFY: Dimension minecraft:the_end has POI files")
+                    write("VERIFY: Dimension \"minecraft:the_end\" has POI files")
                     succeed = False
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
                     subSucceed = verifyDimensions(path + map + "/dimensions/" + d, d, "")
@@ -497,52 +517,64 @@ while True:
                 if os.path.isfile(os.path.join(path + map + "/data/scoreboard.dat")):
                     write("RESET: Scoreboard data has been deleted")
                     os.remove(os.path.join(path + map + "/data/scoreboard.dat"))
+                if os.path.isfile(os.path.join(path + map + "/data/stopwatches.dat")):
+                    write("RESET: Stopwatch data has been deleted")
+                    os.remove(os.path.join(path + map + "/data/stopwatches.dat"))
                 for file in [name for name in os.listdir(path + map + "/data") if os.path.isfile(os.path.join(path + map + "/data", name))]:
                     if file.startswith("command_storage_"):
                         fileName = file.removeprefix("command_storage_").removesuffix(".dat")
                         write("RESET: Command storage \"" + fileName + "\" has been deleted")
                         os.remove(os.path.join(path + map + "/data/" + file))
                 if os.path.isfile(os.path.join(path + map + "/data/chunks.dat")):
-                    write("RESET: Dimension minecraft:overworld had its forceloaded chunks deleted")
+                    write("RESET: Dimension \"minecraft:overworld\" had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/data/raids.dat")):
-                    write("RESET: Dimension minecraft:overworld had its raids deleted")
+                    write("RESET: Dimension \"minecraft:overworld\" had its raids deleted")
                     os.remove(os.path.join(path + map + "/data/raids.dat"))
+                if os.path.isfile(os.path.join(path + map + "/data/world_border.dat")):
+                    write("RESET: Dimension \"minecraft:overworld\" had its world border deleted")
+                    os.remove(os.path.join(path + map + "/data/world_border.dat"))
                 if os.path.isdir(os.path.join(path + map + "/entities")):
-                    write("RESET: Dimension minecraft:overworld had its entity files deleted")
+                    write("RESET: Dimension \"minecraft:overworld\" had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/entities"))
                 if os.path.isdir(os.path.join(path + map + "/poi")):
-                    write("RESET: Dimension minecraft:overworld had its POI files deleted")
+                    write("RESET: Dimension \"minecraft:overworld\" had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/poi"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1")) and useNether == False:
-                    write("RESET: Dimension minecraft:the_nether had its files deleted")
+                    write("RESET: Dimension \"minecraft:the_nether\" had its files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1"))
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/chunks.dat")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its forceloaded chunks deleted")
+                    write("RESET: Dimension \"minecraft:the_nether\" had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/DIM-1/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/DIM-1/data/raids.dat")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its raids deleted")
+                    write("RESET: Dimension \"minecraft:the_nether\" had its raids deleted")
                     os.remove(os.path.join(path + map + "/DIM-1/data/raids.dat"))
+                if os.path.isfile(os.path.join(path + map + "/DIM-1/data/world_border.dat")) and useNether:
+                    write("RESET: Dimension \"minecraft:the_nether\" had its world border deleted")
+                    os.remove(os.path.join(path + map + "/DIM-1/data/world_border.dat"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/entities")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its entity files deleted")
+                    write("RESET: Dimension \"minecraft:the_nether\" had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1/entities"))
                 if os.path.isdir(os.path.join(path + map + "/DIM-1/poi")) and useNether:
-                    write("RESET: Dimension minecraft:the_nether had its POI files deleted")
+                    write("RESET: Dimension \"minecraft:the_nether\" had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM-1/poi"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1")) and useEnd == False:
-                    write("RESET: Dimension minecraft:the_end had its files deleted")
+                    write("RESET: Dimension \"minecraft:the_end\" had its files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1"))
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/chunks.dat")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its forceloaded chunks deleted")
+                    write("RESET: Dimension \"minecraft:the_end\" had its forceloaded chunks deleted")
                     os.remove(os.path.join(path + map + "/DIM1/data/chunks.dat"))
                 if os.path.isfile(os.path.join(path + map + "/DIM1/data/raids.dat")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its raids deleted")
+                    write("RESET: Dimension \"minecraft:the_end\" had its raids deleted")
                     os.remove(os.path.join(path + map + "/DIM1/data/raids.dat"))
+                if os.path.isfile(os.path.join(path + map + "/DIM1/data/world_border.dat")) and useEnd:
+                    write("RESET: Dimension \"minecraft:the_end\" had its world border deleted")
+                    os.remove(os.path.join(path + map + "/DIM1/data/world_border.dat"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1/entities")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its entity files deleted")
+                    write("RESET: Dimension \"minecraft:the_end\" had its entity files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1/entities"))
                 if os.path.isdir(os.path.join(path + map + "/DIM1/poi")) and useEnd:
-                    write("RESET: Dimension minecraft:the_end had its POI files deleted")
+                    write("RESET: Dimension \"minecraft:the_end\" had its POI files deleted")
                     shutil.rmtree(os.path.join(path + map + "/DIM1/poi"))
                 for d in [name for name in os.listdir(path + map + "/dimensions") if os.path.isdir(os.path.join(path + map + "/dimensions", name))]:
                     resetDimensions(path + map + "/dimensions/" + d, d, "")
@@ -573,13 +605,92 @@ while True:
                 unlocked = False
             elif selected == "reset" and verifySucceeded:
                 write("Reset already reset the map")
+            elif selected == "upsidedown" and upsidedownUpdated == False:
+                write("Running English (Upside-down) generation")
+                charMap = {}
+                if os.path.isfile(executionPath + "upside down characters.txt"):
+                    with open(executionPath + "upside down characters.txt", "r", encoding="utf-8") as charMapFile:
+                        for line in charMapFile:
+                            line = line.replace("\n","").replace("\r","")
+                            if not line:
+                                continue
+                            if "|-|" in line:
+                                key, value = line.split("|-|", 1)
+                                charMap[key] = value
+
+                for n in [name for name in os.listdir(path + map + " Resource Pack/assets/") if os.path.isdir(os.path.join(path + map + " Resource Pack/assets/", name))]:
+                    if os.path.isdir(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang")):
+                        if os.path.isfile(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang/en_gb.json")):
+                            if os.path.isfile(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang/en_ud.json")): os.remove(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang/en_ud.json"))
+                            with open(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang/en_gb.json"), "r", encoding="utf-8") as source, open(os.path.join(path + map + " Resource Pack/assets/" + n + "/lang/en_ud.json"), "w", encoding="utf-8") as target:
+                                for line in source: 
+                                    comma = False
+                                    upsidedownLine = ""
+                                    if line.startswith("{") == False and line.startswith("}") == False:
+                                        line = line.replace("\n","").replace("\r","")
+                                        if line.endswith(","):
+                                            comma = True
+                                            line = line[:-2]
+                                        else: line = line[:-1]
+                                        splitLine = line.split("\": \"")
+                                        split = list(splitLine[1])
+                                        j = 0
+                                        while j < len(split):
+                                            tmp = split[j]
+                                            erroredchar = tmp
+                                            errored = False
+                                            while tmp not in charMap and tmp != '\x1b':
+                                                write("Upsidedown: Unknown char '" + tmp + "'; please enter what character to treat it as; Press Esc to insert as-is")
+                                                errored = True
+                                                tmp = readchar.readkey()
+                                            if errored and tmp != '\x1b': 
+                                                charMapFile = open(executionPath + "upside down characters.txt", "a", encoding="utf-8")
+                                                charMapFile.write("\n" + erroredchar + "|-|" + charMap[tmp])
+                                                charMapFile.close()
+                                            if tmp == '\x1b':
+                                                upsidedownLine = erroredchar + upsidedownLine
+                                            else:
+                                                upsidedownLine = charMap[tmp] + upsidedownLine
+                                            j += 1
+                                        upsidedownLine = upsidedownLine.replace("s%", "%s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u295d%", "%1$s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u1614%", "%2$s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u0190%", "%3$s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u07c8%", "%4$s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u03db%", "%5$s")
+                                        upsidedownLine = upsidedownLine.replace("s$9%", "%6$s")
+                                        upsidedownLine = upsidedownLine.replace("s$\u3125%", "%7$s")
+                                        upsidedownLine = upsidedownLine.replace("s$8%", "%8$s")
+                                        upsidedownLine = upsidedownLine.replace("s$6%", "%9$s")
+                                        upsidedownLine = upsidedownLine.replace("„\\", "„")
+                                        line = splitLine[0] + "\": \"" + upsidedownLine + "\""
+                                        if comma: line = line + ","
+                                    target.write(line + "\n")
+                            write("Upsidedown: Generated for namespace \"" + n + "\"")
+                upsidedownUpdated = True
+            elif selected == "upsidedown" and upsidedownUpdated:
+                write("English (Upside-down) is already generated")
             elif selected == "build" and alreadyBuild == False:
                 write("Running download building")
-                continueBuilding = "y"
+                continueBuilding = "u"
                 if verifySucceeded == False:
                     write("BUILD: Please verify or reset the map first; if it's not properly reset, building is not allowed")
-                    continueBuilding = "n"
-                if continueBuilding == "y":
+                else:
+                    write("BUILD: Did you update the translations? (Press 's' if this was a minor update with no string changes)")
+                    verify = "u"
+                    while verify == "u":
+                        verify = readchar.readkey()
+                        if verify != "n" and verify != "y" and verify != "s":
+                            verify = "u"
+                        elif verify == "n":
+                            write("BUILD: Please update the translations first, or they'll be outdated; download them from crowdin")
+                        elif verify == "s":
+                            write("BUILD: Minor update with no string changes; skipping verification")
+                        elif verify == "y":
+                            if upsidedownUpdated == False:
+                                write("BUILD: Please update the upside down translations first, or it'll be outdated")
+                                verify = "n"
+                if continueBuilding == "y" or verify == "s":
                     write("BUILD: What is the version number?")
                     versionNumber = input()
                     zipName = map + " (v" + versionNumber + ").zip"
