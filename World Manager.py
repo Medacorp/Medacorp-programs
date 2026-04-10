@@ -13,6 +13,12 @@ def verifyDimensions(folder: str, namespace: str, ID: str) -> bool:
         if os.path.isdir(os.path.join(folder + "/" + dID + "/data/")):
             write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has data files")
             succeed = False
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/entities/")):
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has entity files")
+            succeed = False
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/poi/")):
+            write("VERIFY: Dimension \"" + namespace + ":" + newID + "\" has POI files")
+            succeed = False
         subSucceed = verifyDimensions(folder + "/" + dID, namespace, newID)
         if (subSucceed == False): succeed = False
     return succeed
@@ -22,10 +28,15 @@ def resetDimensions(folder: str, namespace: str, ID: str):
             newID = dID
         else:
             newID = ID + "/" + dID
-        if os.path.isfile(os.path.join(folder + "/" + dID + "/data/")):
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/data/")):
             write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its data files deleted")
-            os.remove(os.path.join(folder + "/" + dID + "/data/chunks.dat"))
             shutil.rmtree(os.path.join(folder + "/" + dID + "/data"))
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/entities/")):
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its entity files deleted")
+            shutil.rmtree(os.path.join(folder + "/" + dID + "/entities"))
+        if os.path.isdir(os.path.join(folder + "/" + dID + "/poi/")):
+            write("RESET: Dimension \"" + namespace + ":" + newID + "\" had its POI files deleted")
+            shutil.rmtree(os.path.join(folder + "/" + dID + "/poi"))
         resetDimensions(folder + "/" + dID, namespace, newID)
 
 WorldsPath= ""
@@ -242,7 +253,7 @@ while True:
                         dataFiles = [name for name in os.listdir(path + map + "/data/minecraft/") if os.path.isfile(os.path.join(path + map + "/data/minecraft/", name))]
                         for datafile in dataFiles:
                             if datafile != "world_gen_settings.dat":
-                                write("VERIFY: Global data file minecraft:\"" + datafile + "\" is present")
+                                write("VERIFY: Global data file \"minecraft:" + datafile + "\" is present")
                                 succeed = False
                             else:
                                 foundWorldGenSettings = True
@@ -270,21 +281,6 @@ while True:
             elif selected == "unlock":
                 write("Running unlock")
                 if unlocked == False:
-                    modifyEither = False
-                    if os.path.isdir(os.path.join(path + map + "/data")):
-                        if os.path.isdir(os.path.join(path + map + "/data/minecraft")):
-                            if os.path.isfile(os.path.join(path + map + "/data/minecraft/game_rules.dat")):
-                                nbtfile = nbt.NBTFile(path + map + "/data/minecraft/game_rules.dat", "rb")
-                                nbtfile.name = 'game_rules'
-                                modify = False
-                                for tag in nbtfile["data"].tags:
-                                    if tag.name == "minecraft:send_command_feedback" and tag.value == 0:
-                                        tag.value = 1
-                                        write("UNLOCK: Game rule \"minecraft:send_command_feedback\" set to true")
-                                        modify = True
-                                        modifyEither = True
-                                if modify: 
-                                    nbtfile.write_file(path + map + "/data/minecraft/game_rules.dat")
                     nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                     nbtfile.name = 'level'
                     modify = False
@@ -296,7 +292,6 @@ while True:
                             modifyEither = True
                     if modify: 
                         nbtfile.write_file(path + map + "/level.dat")
-                    if modifyEither:
                         write("UNLOCK: Unlocked map for development")
                     else:
                         write("UNLOCK: Map was already unlocked")
@@ -406,7 +401,8 @@ while True:
                                 if datafile != "world_gen_settings.dat":
                                     write("RESET: Global data file \"minecraft:" + datafile + "\" has been deleted")
                                     os.remove(os.path.join(path + map + "/data/minecraft/" + datafile))
-                                    shutil.rmtree(os.path.join(path + map + "/players"))
+                                    shutil.rmtree(os.path.join(path + map + "/data/minecraft"))
+                                    os.remove(os.path.join(path + map + "/session.lock"))
                                 else:
                                     missingWorldGenSettings = False
                                     nbtfile = nbt.NBTFile(path + map + "/data/minecraft/world_gen_settings.dat", "rb")
