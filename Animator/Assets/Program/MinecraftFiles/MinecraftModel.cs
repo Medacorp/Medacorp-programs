@@ -61,6 +61,26 @@ public class MinecraftModel
             {
                 float[] from = { -(element.from[0] - 8) / 16, (element.from[1] - 8) / 16, (element.from[2] - 8) / 16 };
                 float[] to = { -(element.to[0] - 8) / 16, (element.to[1] - 8) / 16, (element.to[2] - 8) / 16 };
+                
+                //TODO: handle item model transformation matrix here
+//                Vector3 translation = new Vector3(tx, ty, -tz);
+                
+                //Axis-Angle to Quaternion
+//                Vector3 axis = new Vector3(ax, ay, -az).normalized;
+//                Quaternion q = Quaternion.AngleAxis(angle * Mathf.Rad2Deg, axis);
+                
+                
+//                Quaternion leftRotation = new Quaternion(lx, ly, -lz, lw);
+//                Quaternion rightRotation = new Quaternion(rx, ry, -rz, rw);
+                
+//                Vector3 scale = new Vector3(sx, sy, sz);
+                
+                // Build matrices
+//                Matrix4x4 T  = Matrix4x4.Translate(translation);
+//                Matrix4x4 RL = Matrix4x4.Rotate(leftRotation);
+//                Matrix4x4 RR = Matrix4x4.Rotate(rightRotation);
+//                Matrix4x4 S  = Matrix4x4.Scale(scale);
+
                 List<Vector3> points = new(){
                     new(to[0],from[1],from[2]),
                     new(to[0],from[1],to[2]),
@@ -71,6 +91,13 @@ public class MinecraftModel
                     new(from[0],to[1],from[2]),
                     new(from[0],to[1],to[2])
                 };
+                
+                // Compose (IMPORTANT: order matters)
+//                Matrix4x4 M = T * RL * S * RR;
+                for (int i = 0; i < points.Count; i++)
+                {
+//                    points[i] = Matrix.MultiplyPoint(points[i]);
+                }
                 if (element.HasRotation())
                 {
                     List<Vector3> newpoints = new();
@@ -274,6 +301,7 @@ public class MinecraftModel
             parsedModel.untintedMesh.uv = uv.ToArray();
             parsedModel.untintedMesh.triangles = triangles.ToArray();
             parsedModel.untintedMesh.RecalculateNormals();
+            parsedModel.untintedMesh.RecalculateBounds();
             //Bounds bounds = parsedModel.untintedMesh.bounds;
             //heighestPoint += (bounds.max.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
             //lowestPoint += (bounds.min.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
@@ -284,6 +312,7 @@ public class MinecraftModel
                 mesh.uv = tinteduv[index].ToArray();
                 mesh.triangles = tintedtriangles[index].ToArray();
                 mesh.RecalculateNormals();
+                mesh.RecalculateBounds();
                 index++;
             }
         }

@@ -56,7 +56,7 @@ public class CameraBehavior : MonoBehaviour
             else {
                 if (mouseWasDown == false && Physics.Raycast (ray, out hit, 100)) {
                     //(h)CompositeModel0.(p)Display.(p)TemplateVariant.(p)DefaultOffset.(p)RotationPoint.(p)TemplatePart
-                    Main.GetComponent<Main>().SetSelectedModelPart(hit.transform.parent.parent.parent.parent.parent.gameObject);
+                    //Main.GetComponent<Main>().SetSelectedModelPart(hit.transform.parent.parent.parent.parent.parent.gameObject);
                     floats.Add(0);
                     floats.Add(0);
                 }

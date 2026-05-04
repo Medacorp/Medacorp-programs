@@ -205,37 +205,37 @@ public class OLDConditionalModelPartSetting {
         }
     }
     public bool ConditionsMatch(Main mainScript) {
-        if (tags.Count != 0) {
-            foreach (KeyValuePair<string,bool> tag in tags) {
-                if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) return false;
-            }
-        }
-        if (scores.Count != 0) {
-            foreach (KeyValuePair<string,string> score in scores) {
-                int scoreValue;
-                string[] scoreKeyStrings = score.Key.Split(" ");
-                string scoreKey = scoreKeyStrings[scoreKeyStrings.Length-2] + " " + scoreKeyStrings[scoreKeyStrings.Length-1];
-                mainScript.scoreValues.TryGetValue(scoreKey, out scoreValue);
-                if (score.Key.StartsWith("if")) {
-                    if (!score.Value.Contains("..") && scoreValue != Convert.ToInt32(score.Value)) return false;
-                    else if (score.Value.StartsWith("..")) {
-                        string[] split = score.Value.Split("..");
-                        if (split[0] == "" && scoreValue > Convert.ToInt32(split[1])) return false;
-                        else if (split[1] == "" && scoreValue < Convert.ToInt32(split[0])) return false;
-                        else if (!(scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1]))) return false;
-                    }
-                }
-                else {
-                    if (!score.Value.Contains("..") && scoreValue == Convert.ToInt32(score.Value)) return false;
-                    else if (score.Value.StartsWith("..")) {
-                        string[] split = score.Value.Split("..");
-                        if (split[0] == "" && scoreValue <= Convert.ToInt32(split[1])) return false;
-                        else if (split[1] == "" && scoreValue >= Convert.ToInt32(split[0])) return false;
-                        else if (scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1])) return false;
-                    }
-                }
-            }
-        }
+        //if (tags.Count != 0) {
+        //    foreach (KeyValuePair<string,bool> tag in tags) {
+        //        if (mainScript.enabledTags.Contains(tag.Key) != tag.Value) return false;
+        //    }
+        //}
+        //if (scores.Count != 0) {
+        //    foreach (KeyValuePair<string,string> score in scores) {
+        //        int scoreValue;
+        //        string[] scoreKeyStrings = score.Key.Split(" ");
+        //        string scoreKey = scoreKeyStrings[scoreKeyStrings.Length-2] + " " + scoreKeyStrings[scoreKeyStrings.Length-1];
+        //        mainScript.scoreValues.TryGetValue(scoreKey, out scoreValue);
+        //        if (score.Key.StartsWith("if")) {
+        //            if (!score.Value.Contains("..") && scoreValue != Convert.ToInt32(score.Value)) return false;
+        //            else if (score.Value.StartsWith("..")) {
+        //                string[] split = score.Value.Split("..");
+        //                if (split[0] == "" && scoreValue > Convert.ToInt32(split[1])) return false;
+        //                else if (split[1] == "" && scoreValue < Convert.ToInt32(split[0])) return false;
+        //                else if (!(scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1]))) return false;
+        //            }
+        //        }
+        //        else {
+        //            if (!score.Value.Contains("..") && scoreValue == Convert.ToInt32(score.Value)) return false;
+        //            else if (score.Value.StartsWith("..")) {
+        //                string[] split = score.Value.Split("..");
+        //                if (split[0] == "" && scoreValue <= Convert.ToInt32(split[1])) return false;
+        //                else if (split[1] == "" && scoreValue >= Convert.ToInt32(split[0])) return false;
+        //                else if (scoreValue >= Convert.ToInt32(split[0]) && scoreValue <= Convert.ToInt32(split[1])) return false;
+        //            }
+        //        }
+        //    }
+        //}
         return true;
     }
 

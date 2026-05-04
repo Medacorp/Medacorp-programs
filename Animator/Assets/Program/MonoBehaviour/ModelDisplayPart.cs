@@ -5,7 +5,9 @@ public class ModelDisplayPart : MonoBehaviour
 {
     private GameObject rotationPoint;
     private GameObject animationValues;
-    private GameObject defaultOffset;
+    private GameObject animationRightRotation;
+    private GameObject entityTransformation;
+    private GameObject entityRightRotation;
     private GameObject templateModel;
     private GameObject templateMesh;
     public Material transparentMaterial;
@@ -40,8 +42,10 @@ public class ModelDisplayPart : MonoBehaviour
     {
         rotationPoint = gameObject.transform.GetChild(0).gameObject;
         animationValues = rotationPoint.transform.GetChild(0).gameObject;
-        defaultOffset = animationValues.transform.GetChild(0).gameObject;
-        templateModel = defaultOffset.transform.GetChild(0).gameObject;
+        animationRightRotation = animationValues.transform.GetChild(0).gameObject;
+        entityTransformation = animationRightRotation.transform.GetChild(0).gameObject;
+        entityRightRotation = entityTransformation.transform.GetChild(0).gameObject;
+        templateModel = entityRightRotation.transform.GetChild(0).gameObject;
         templateMesh = templateModel.transform.GetChild(0).gameObject;
         GenerateModels();
     }
@@ -52,15 +56,15 @@ public class ModelDisplayPart : MonoBehaviour
         
     }
     public void GenerateModels() {
-        for (int j = defaultOffset.transform.childCount; j < 1; j--)
+        for (int j = entityRightRotation.transform.childCount; j < 1; j--)
         {
-            Destroy(defaultOffset.transform.GetChild(j - 1).gameObject);
+            Destroy(entityRightRotation.transform.GetChild(j - 1).gameObject);
         }
         foreach (MinecraftItemModelFetched fetch in part.GetModels())
         {
             ParsedMinecraftModel parsed = MinecraftModel.parsedModels[fetch.modelIndex];
             List<Color> tints = parsed.GetTints(part.minecraft_item);
-            GameObject newModel = Instantiate(templateModel, new Vector3(0, 0, 0), new Quaternion(), defaultOffset.transform);
+            GameObject newModel = Instantiate(templateModel, new Vector3(0, 0, 0), new Quaternion(), entityRightRotation.transform);
             MinecraftModelDisplay display = new();
             parsed.display.TryGetValue("head", out display);
             newModel.transform.localRotation = display.GetRotation();

@@ -158,21 +158,21 @@ public class OLDModelDisplay : MonoBehaviour
         float heighestPoint = 0;
         float lowestPoint = 0;
         int totalModels = 0;
-        foreach (GameObject model in Main.GetComponent<Main>().modelParts) {
-            foreach (GameObject variant in model.GetComponent<OLDModelDisplay>().variants) {
-                for (int i = variant.transform.childCount - 1; i >= 0; i--) {
-                    GameObject thisdisplay = variant.transform.GetChild(i).gameObject; 
-                    if (thisdisplay.activeSelf) {
-                        thisdisplay.transform.SetParent(null);
-                        Bounds bounds = thisdisplay.GetComponent<MeshFilter>().mesh.bounds;
-                        heighestPoint += (bounds.max.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
-                        lowestPoint += (bounds.min.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
-                        thisdisplay.transform.SetParent(variant.transform);
-                        totalModels++;
-                    }
-                }
-            }
-        }
+        //foreach (GameObject model in Main.GetComponent<Main>().modelParts) {
+        //    foreach (GameObject variant in model.GetComponent<OLDModelDisplay>().variants) {
+        //        for (int i = variant.transform.childCount - 1; i >= 0; i--) {
+        //            GameObject thisdisplay = variant.transform.GetChild(i).gameObject; 
+        //            if (thisdisplay.activeSelf) {
+        //                thisdisplay.transform.SetParent(null);
+        //                Bounds bounds = thisdisplay.GetComponent<MeshFilter>().mesh.bounds;
+        //                heighestPoint += (bounds.max.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
+        //                lowestPoint += (bounds.min.y + thisdisplay.transform.position.y) * thisdisplay.transform.localScale.y;
+        //                thisdisplay.transform.SetParent(variant.transform);
+        //                totalModels++;
+        //            }
+        //        }
+        //    }
+        //}
         cameraObject.GetComponent<CameraBehavior>().SetModelHeight(lowestPoint / totalModels, heighestPoint / totalModels);
     }
     public void SetModel(Dictionary<string, string[]> variants, string[] defaultVariant, string visibleVariant) {
@@ -381,7 +381,7 @@ public class OLDModelDisplay : MonoBehaviour
                     new(from[0],to[1],from[2]),
                     new(from[0],to[1],to[2])
                 };
-                if (element.GetRotationAngle() != 0) {
+                //if (element.GetRotationAngle() != 0) {
                     List<Vector3> newpoints = new();
                     float[] angles = element.GetRotationEulerAngle();
                     Quaternion rotation = Quaternion.Euler(angles[0], -angles[1], -angles[2]);
@@ -390,7 +390,7 @@ public class OLDModelDisplay : MonoBehaviour
                         newpoints.Add(rotation * (point - rotationPoint) + rotationPoint);
                     }
                     points = newpoints;
-                }
+                //}
                 foreach (KeyValuePair<string,MinecraftModelFace> face in element.faces) {
                     float[] uvs = {face.Value.uv[0] / 16, face.Value.uv[1] / 16, face.Value.uv[2] / 16, face.Value.uv[3] / 16};
                     float xScale = 1;

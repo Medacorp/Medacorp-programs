@@ -20,31 +20,21 @@ public class Main : MonoBehaviour
     private Dictionary<string,string> worldMap = new();
     private string selectedWorldRoot;
     private string selectedWorld;
+    private List<string> SpawnFunctions;
     public GameObject addOnSelector;
     private string selectedAddOn;
-    public GameObject animationGroupSelector;
-    private string selectedAnimationGroup;
+    public GameObject entitySelector;
+    private string selectedEntity;
+    private string selectedAnimationRoot;
+    public string commandStorageName;
+    public string commandStorageValue;
+    public string mainFunction;
     private string[] entityID = {"","",""};
-    private List<string> validEntities;
-    private MapEntity mapEntity;
+    private MapEntity mapEntity = new();
     public GameObject animationSelector;
     private string selectedAnimation;
     public GameObject changeFunctionButton;
     public GameObject modelDisplay;
-    public List<OLDModelPart> parts;
-    private bool singleModelObject = false;
-    public GameObject entity;
-    public GameObject templateModelPart;
-    public GameObject templateTagToggle;
-    public GameObject templateScoreToggle;
-    public GameObject entityOffsetInput;
-    public List<GameObject> modelParts;
-    public List<string> enabledTags = new();
-    public Dictionary<string,int> scoreValues = new();
-    private List<GameObject> fieldToggles = new();
-    private List<string> createdTagToggles = new();
-    private List<string> createdScoreToggles = new();
-    private GameObject selectedModelPart;
     private List<string> awaiting = new();
     public GameObject loadingScreen;
     public GameObject loadingText;
@@ -105,10 +95,10 @@ public class Main : MonoBehaviour
                     loading = "Extracting Minecraft assets...";
                     break;
                 case "entities":
-                    loading = "Getting animation groups...";
+                    loading = "Getting entities...";
                     break;
                 case "entitiesDone":
-                    loading = "Getting animation groups...";
+                    loading = "Getting entities...";
                     //This line may not run on another thread
                     if (addOnSelector.GetComponent<TMP_Dropdown>().value != 0) AddOnSelected();
                     awaiting.RemoveAll(i => i == "entitiesDone");
@@ -139,10 +129,10 @@ public class Main : MonoBehaviour
         }
         else {
             selectedWorld = dropdown.options[dropdown.value].text;
-            foreach (KeyValuePair<string, string> world in worldMap) {
-                if (world.Key == selectedWorld) {
-                    selectedWorldRoot = world.Value;
-                    break;
+            worldMap.TryGetValue(selectedWorld, out selectedWorldRoot);
+            if (!File.Exists(executionPath + "animator settings/" + selectedWorld + ".json") && Directory.Exists(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/MEDACORP/animator/")) {
+                if (File.Exists(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/MEDACORP/animator/settings.json")) {
+                    File.Copy(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/MEDACORP/animator/settings.json", executionPath + "animator settings/" + selectedWorld + ".json");
                 }
             }
             addOnSelector.GetComponent<TMP_Dropdown>().interactable = true;
@@ -159,14 +149,14 @@ public class Main : MonoBehaviour
                     addOnSelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(addOn));
                 }
             }
-            validEntities = new();
+            SpawnFunctions = new();
             Thread threadedCloneAssets = new Thread(() => GetMinecraftAssets());
             threadedCloneAssets.Start();
             Thread threadedGetEntities = new Thread(() => GetEntities());
             threadedGetEntities.Start();
         }
-        animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = false;
-        animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
+        entitySelector.GetComponent<TMP_Dropdown>().interactable = false;
+        entitySelector.GetComponent<TMP_Dropdown>().value = 0;
         animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         ClearModel();
@@ -175,7 +165,7 @@ public class Main : MonoBehaviour
     private void GetEntities()
     {
         awaiting.Add("entities");
-        List<string> newValidEntities = new();
+        List<string> newSpawnFunctions = new();
         foreach (string addOn in Directory.GetDirectories(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/"))
         {
             string[] split = addOn.Split("/");
@@ -192,18 +182,18 @@ public class Main : MonoBehaviour
                     string[] callFunctions = Directory.GetFiles(path2, "call_part_function.mcfunction", SearchOption.AllDirectories);
                     foreach (string function in mainFunctions)
                     {
-                        newValidEntities.Add(animationNamespace + ":" + function.Replace(path2, "").Replace("\\main.mcfunction", "") + ":" + dataPack);
+                        newSpawnFunctions.Add(animationNamespace + ":" + function.Replace(path2, "").Replace("\\main.mcfunction", "").Replace("\\", "/") + ":" + dataPack);
                     }
                     foreach (string function in callFunctions)
                     {
-                        string trim = function.Replace(path2, "").Replace("\\call_part_function.mcfunction", "");
-                        if (!newValidEntities.Contains(animationNamespace + ":" + trim + ":" + dataPack)) newValidEntities.Add(animationNamespace + ":" + trim + ":" + dataPack);
+                        string trim = function.Replace(path2, "").Replace("\\call_part_function.mcfunction", "").Replace("\\", "/");
+                        if (!newSpawnFunctions.Contains(animationNamespace + ":" + trim + ":" + dataPack)) newSpawnFunctions.Add(animationNamespace + ":" + trim + ":" + dataPack);
                     }
                 }
             }
         }
-        newValidEntities.Sort();
-        validEntities = newValidEntities;
+        newSpawnFunctions.Sort();
+        SpawnFunctions = newSpawnFunctions;
         awaiting.RemoveAll(i => i == "entities");
         awaiting.Add("entitiesDone");
     }
@@ -270,24 +260,24 @@ public class Main : MonoBehaviour
         TMP_Dropdown dropdown = addOnSelector.GetComponent<TMP_Dropdown>();
         if (dropdown.value == 0) {
             selectedAddOn = null;
-            animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = false;
-            animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
+            entitySelector.GetComponent<TMP_Dropdown>().interactable = false;
+            entitySelector.GetComponent<TMP_Dropdown>().value = 0;
         }
         else {
             selectedAddOn = dropdown.options[dropdown.value].text;
-            TMP_Dropdown animationGroupDropdown = animationGroupSelector.GetComponent<TMP_Dropdown>();
+            TMP_Dropdown animationGroupDropdown = entitySelector.GetComponent<TMP_Dropdown>();
             animationGroupDropdown.options.Clear();
-            if (validEntities.Count != 0) {
-                animationGroupSelector.GetComponent<TMP_Dropdown>().interactable = true;
+            if (SpawnFunctions.Count != 0) {
+                entitySelector.GetComponent<TMP_Dropdown>().interactable = true;
                 animationGroupDropdown.options.Add(new TMP_Dropdown.OptionData("Select animation group"));
                 foreach (string folder in Directory.GetDirectories(worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/")) {
                     string[] split = folder.Split("/");
                     string animationNamespace = split[split.Length-1];
                     string path = worldsPath+selectedWorldRoot+"/"+selectedWorld+"/datapacks/" + selectedAddOn + "/data/" + animationNamespace + "/function/animations/";
-                    foreach (string entity in validEntities) {
+                    foreach (string entity in SpawnFunctions) {
                         string[] entityID = entity.Split(":");
                         if (Directory.Exists(path + entityID[1])) {
-                            animationGroupSelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(entityID[0] + ":" + entityID[1]));
+                            entitySelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(entityID[0] + ":" + entityID[1]));
                         }
                     }
                 }
@@ -298,13 +288,13 @@ public class Main : MonoBehaviour
         }
         ClearModel();
     }
-    public void AnimationGroupSelected() {
-        TMP_Dropdown dropdown = animationGroupSelector.GetComponent<TMP_Dropdown>();
+    public void EntitySelected() {
+        TMP_Dropdown dropdown = entitySelector.GetComponent<TMP_Dropdown>();
         if (dropdown.value == 0) ClearModel();
         else {
-            selectedAnimationGroup = dropdown.options[dropdown.value].text;
-            entityID = selectedAnimationGroup.Split(":");
-            string entity = validEntities.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
+            selectedEntity = dropdown.options[dropdown.value].text;
+            entityID = selectedEntity.Split(":");
+            string entity = SpawnFunctions.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
             entityID = entity.Split(":");
             GetSpawnFunction(entityID, false);
             TMP_Dropdown animationDropdown = animationSelector.GetComponent<TMP_Dropdown>();
@@ -332,10 +322,10 @@ public class Main : MonoBehaviour
 
     public void PressChangeFunctionButton()
     {
-        TMP_Dropdown dropdown = animationGroupSelector.GetComponent<TMP_Dropdown>();
-        selectedAnimationGroup = dropdown.options[dropdown.value].text;
-        entityID = selectedAnimationGroup.Split(":");
-        string entity = validEntities.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
+        TMP_Dropdown dropdown = entitySelector.GetComponent<TMP_Dropdown>();
+        selectedEntity = dropdown.options[dropdown.value].text;
+        entityID = selectedEntity.Split(":");
+        string entity = SpawnFunctions.Find(e => e.StartsWith(entityID[0] + ":" + entityID[1]));
         entityID = entity.Split(":");
         GetSpawnFunction(entityID, true);
     }
@@ -348,33 +338,46 @@ public class Main : MonoBehaviour
         string entityNamespace = ID[0];
         string entityName = ID[1];
         string spawn_function = "";
-        foreach (KeyValuePair<string, string> function in animatorSettings.spawn_functions) {
-            if (function.Key == entityNamespace + ":" + entityName) {
-                spawn_function = function.Value;
-                animatorSettings.spawn_functions.Remove(function.Key);
-                break;
-            }
+        string animation_root = "";
+        AnimatorSettingsEntity entity = new();
+        bool foundInList = animatorSettings.entities.TryGetValue(entityNamespace + ":" + entityName, out entity);
+        if (entity.spawn_function != null)
+        {
+            spawn_function = entity.spawn_function;
+            animation_root = entity.animation_root;
         }
-        if (spawn_function == "" || !File.Exists(path + spawn_function) || force) {
+        if (spawn_function == "" || !File.Exists(path + Regex.Replace(spawn_function,":([a-z0-9_-]+):","/data/$1/function/") + ".mcfunction") || force)
+        {
             string title = "Select Spawn Function";
             spawn_function = EditorUtility.OpenFilePanel(title, path, "mcfunction");
-            if (spawn_function.Contains(path)) spawn_function = spawn_function.Replace(path,"");
+            if (spawn_function.Contains(path)) spawn_function = Regex.Replace(spawn_function.Replace(path, "").Replace(".mcfunction", ""), "/data/([a-z0-9_-]+)/function/", ":$1:");
             else spawn_function = "";
         }
-        if (spawn_function != "") {
-            animatorSettings.spawn_functions.Add(entityNamespace + ":" + entityName, spawn_function);
+        if (animation_root == "" || !File.Exists(path + Regex.Replace(animation_root,":([a-z0-9_-]+):","/data/$1/function/") + ".mcfunction") || force)
+        {
+            string title = "Select Animation Root";
+            animation_root = EditorUtility.OpenFilePanel(title, path, "mcfunction");
+            if (animation_root.Contains(path)) animation_root = Regex.Replace(animation_root.Replace(path, "").Replace(".mcfunction", ""), "/data/([a-z0-9_-]+)/function/", ":$1:");
+            else animation_root = "";
+        }
+        if (spawn_function != "" && animation_root != "") {
+            entity.spawn_function = spawn_function;
+            entity.animation_root = animation_root;
+            selectedAnimationRoot = path + Regex.Replace(animation_root,":([a-z0-9_-]+):","/data/$1/function/") + ".mcfunction";
+            if (!foundInList) animatorSettings.entities.Add(entityNamespace + ":" + entityName, entity);
             using (StreamWriter outputFile = new(Path.Combine(executionPath + "animator settings/" + selectedWorld + ".json")))
             {
                 outputFile.WriteLine(JsonConvert.SerializeObject(animatorSettings, Formatting.Indented));
             }
             ReadSpawnFunction(spawn_function);
+            ReadAnimationRoot();
         }
     }
     private void ReadSpawnFunction(string spawn_function)
     {
         MinecraftModel.ClearMemory();
-        mapEntity = new();
-        foreach (string line in File.ReadLines(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/" + spawn_function))
+        mapEntity.model_parts = new();
+        foreach (string line in File.ReadLines(worldsPath + selectedWorldRoot + "/" + selectedWorld + "/datapacks/" + Regex.Replace(spawn_function,":([a-z0-9_-]+):","/data/$1/function/") + ".mcfunction"))
         {
             //TODO: read full entity data, regardless of formatting
             string item = "";
@@ -460,269 +463,35 @@ public class Main : MonoBehaviour
     }
     private void ClearModel() {
         modelDisplay.GetComponent<ModelDisplay>().DeleteModel();
-        SetSelectedModelPart(null);
-        ClearFieldToggles();
-        selectedAnimationGroup = null;
+        selectedEntity = null;
         animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         changeFunctionButton.GetComponent<Button>().interactable = false;
     }
     private void CreateModel() {
         modelDisplay.GetComponent<ModelDisplay>().GenerateModels(mapEntity.model_parts);
-        SetSelectedModelPart(null);
-        ClearFieldToggles();
         animationSelector.GetComponent<TMP_Dropdown>().interactable = true;
         animationSelector.GetComponent<TMP_Dropdown>().value = 0;
         changeFunctionButton.GetComponent<Button>().interactable = true;
     }
-    private void GetListOfParts(string path, string[] ID) {
-        ClearModel();
-        if (File.Exists(path)) {
-            singleModelObject = false;
-            foreach (string line in File.ReadLines(path)) {
-                if (line.Contains("/") && line.Contains(" with")) {
-                    string[] splitLine = line.Split("/");
-                    string[] fullySplitLine = splitLine[splitLine.Length-1].Split(" with");
-                    parts.Add(new OLDModelPart(fullySplitLine[0]));
-                }
+    private void ReadAnimationRoot()
+    {
+        foreach (string line in File.ReadLines(selectedAnimationRoot))
+        {
+            if (line.Contains("data modify storage ") && line.Contains(" set value "))
+            {
+                commandStorageValue = line.Split(" set value ")[1].Replace("Room:0,", "").Replace("mirror:{},", "").Replace("initial_animation_progress:0,", "").Replace("reset_rotation:0b,", "");
+                commandStorageName = line.Split(" set value ")[0].Split("data modify storage ")[1];
             }
-        }
-        else {
-            singleModelObject = true;
-            parts.Add(new OLDModelPart(""));
-        }
-        OLDSavedEntities savedEntities = new();
-        if (File.Exists(executionPath + "animator settings/models/" + selectedWorld + ".json")) {
-            savedEntities = JsonConvert.DeserializeObject<OLDSavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
-        }
-        bool success = false;
-        string entityNamespace = ID[0];
-        string entityName = ID[1];
-        OLDSavedEntity savedEntity = new(entityNamespace + ":" + entityName, parts);
-        foreach (OLDSavedEntity realSavedEntity in savedEntities.entities) {
-            if (realSavedEntity.name == ID[0] + ":" + ID[1]) {
-                parts = realSavedEntity.parts;
-                savedEntity.parts = parts;
-                success = true;
-                break;
-            }
-        }
-        bool cancel = false;
-        if (!success) {
-            List<string> partQueue = new();
-            foreach (OLDModelPart part in parts) {
-                partQueue.Add(part.GetName());
-            }
-            List<string> selectedFiles = null;//SelectModelFiles(partQueue);
-            if (selectedFiles.Count != 0) {
-                foreach (OLDModelPart part in parts) {
-                    string[] model = {selectedFiles[0]};
-                    part.SetModel(model);
-                    selectedFiles.RemoveAt(0);
-                }
-                savedEntities.entities.Add(savedEntity);
-                using (StreamWriter outputFile = new(Path.Combine(executionPath + "animator settings/models/" + selectedWorld + ".json")))
-                {
-                    outputFile.WriteLine(JsonConvert.SerializeObject(savedEntities, Formatting.Indented));
-                }
-            }
-            else {
-                cancel = true;
-                animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
-                animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                changeFunctionButton.GetComponent<Button>().interactable = false;
-            }
-        }
-        if (!cancel) {
-            foreach (OLDModelPart part in savedEntity.parts) {
-                if (!singleModelObject) {
-                    string newpath = path.Replace("call_part_function",part.GetName());
-                    if (File.Exists(newpath)) {
-                        foreach (string line in File.ReadLines(newpath)) {
-                            if (line.Contains("teleport @s") && line.Contains("^")) {
-                                string[] splitLine = line.Split("teleport @s");
-                                string scores = "";
-                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
-                                string[] split = splitLine[splitLine.Length-1].Split(" ~");
-                                string[] offsets = split[0].Split(" ^");
-                                offsets[0] = offsets[0].Replace("[","").Replace("]","").Replace(" ","");
-                                if (offsets[0] == " ") offsets[0] = "";
-                                if (offsets[1].Length == 0) offsets[1] = "0";
-                                if (offsets[2].Length == 0) offsets[2] = "0";
-                                if (offsets[3].Length == 0) offsets[3] = "0";
-                                float[] offsetfloats = {(float)Convert.ToDouble(offsets[1]),(float)Convert.ToDouble(offsets[2]),-(float)Convert.ToDouble(offsets[3])};
-                                part.addConditionalOffset(offsets[0],scores,offsetfloats);
-                                if (offsets[0] != "") CreateTagToggles(offsets[0]);
-                                if (scores != "") CreateScoreToggles(scores);
-                            }
-                            else if (line.Contains("data modify entity @s") && line.Contains("Pose.Head")) {
-                                string[] splitLine = line.Split("data modify entity @s");
-                                string scores = "";
-                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
-                                string[] split = splitLine[splitLine.Length-1].Split(" Pose.Head");
-                                string[] strings = split[1].Replace("[","").Replace("]","").Split(" set value ");
-                                split[0] = split[0].Replace("[","").Replace("]","").Replace(" ","");
-                                strings[1] = strings[1].Replace("f","");
-                                if (strings[0] != "") part.addConditionalPose(split[0], scores,Convert.ToSingle(strings[1]), Convert.ToInt32(strings[0]));
-                                else {
-                                    float[] defaultPose = {0,0,0};
-                                    strings = strings[1].Replace("f","").Replace("[","").Replace("f]","").Split(",");
-                                    defaultPose[0] = Convert.ToSingle(strings[0]);
-                                    defaultPose[1] = Convert.ToSingle(strings[1]);
-                                    defaultPose[2] = Convert.ToSingle(strings[2]);
-                                    part.addConditionalPose(split[0], scores,defaultPose);
-                                }
-                                if (split[0] != "") CreateTagToggles(split[0]);
-                                if (scores != "") CreateScoreToggles(scores);
-                            }
-                            else if (line.Contains("data modify entity @s") && line.Contains("model_data.")) {
-                                string[] splitLine = line.Split("data modify entity @s");
-                                string scores = "";
-                                if (splitLine[0].Contains("if score") || splitLine[0].Contains("unless score")) scores = GetScores(splitLine[0]);
-                                string[] split = {};
-                                if (line.Contains(" ArmorItems[3]")) split = splitLine[splitLine.Length-1].Split(" ArmorItems[3]");
-                                else if (line.Contains(" Item")) split = splitLine[splitLine.Length-1].Split(" Item");
-                                split[0] = split[0].Replace("[","").Replace("]","").Replace(" ","");
-                                string modelPiece = split[split.Length-1].Split("model_data.")[1];
-                                part.addConditionalModelVariant(split[0],scores,modelPiece);
-                                if (split[0] != "") CreateTagToggles(split[0]);
-                                if (scores != "") CreateScoreToggles(scores);
-                                if (!part.VariantExists(modelPiece)) {
-                                    string selectedFile = null;//SelectModelFile(part.GetName(), modelPiece);
-                                    if (selectedFile != "") {
-                                        string[] model = {selectedFile};
-                                        part.SetModel(model, modelPiece);
-                                    }
-                                    else {
-                                        cancel = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                            
-                    }
-                }
-                if (!cancel) {
-                    GameObject modelPart = Instantiate(templateModelPart, new Vector3(0,0,0), new Quaternion(), entity.transform.GetChild(1));
-                    modelPart.SetActive(true);
-                    modelPart.name = part.GetName();
-                    if (modelPart.name == "") modelPart.name = "SingleModelObject";
-                    modelPart.GetComponent<OLDModelDisplay>().SetOffsets(part.GetOffsets());
-                    modelPart.GetComponent<OLDModelDisplay>().SetPoses(part.GetPoses());
-                    modelPart.GetComponent<OLDModelDisplay>().SetVariants(part.GetVariants());
-                    modelPart.GetComponent<OLDModelDisplay>().SetModel(part.variants, part.model, "default");
-                    modelParts.Add(modelPart);
-                }
-                else {
-                    animationGroupSelector.GetComponent<TMP_Dropdown>().value = 0;
-                    animationSelector.GetComponent<TMP_Dropdown>().interactable = false;
-                    changeFunctionButton.GetComponent<Button>().interactable = false;
-                    break;
-                }
-            }
-            if (!cancel) {
-                ToggleTag();
-                SaveModels();
+            if (line.Contains("function ") && line.Contains("/main"))
+            {
+                mainFunction = line.Split("function ")[1];
             }
         }
     }
-    private string GetScores(string execute) {
-        string scores = "";
-        string newexecute = execute.Replace("execute","").Replace(" run ","");
-        for (int i = 0; i < newexecute.Length; i++) {
-            if (i >= 9 && newexecute[(i-9)..i] == " if score ") {
-                string[] newscore = newexecute[(i+1)..].Split(" ");
-                scores = scores + "|if " + newscore[0] + " " + newscore[1];
-            }
-            else if (i >= 13 && newexecute[(i-13)..i] == " unless score ") {
-                string[] newscore = newexecute[(i+1)..].Split(" ");
-                scores = scores + "|unless " + newscore[0] + " " + newscore[1];
-            }
-        }
-        if (scores.StartsWith("|")) scores = scores[1..];
-        return scores;
-    }
-    private void ClearFieldToggles() {
-        foreach (GameObject toggle in fieldToggles) {
-            Destroy(toggle);
-        }
-        fieldToggles.Clear();
-        enabledTags.Clear();
-        scoreValues.Clear();
-        createdTagToggles.Clear();
-        createdScoreToggles.Clear();
-    }
-    private void CreateTagToggles(string conditions) {
-        string[] split = conditions.Replace("!","").Replace("tag=","").Split(",");
-        foreach (string con in split) {
-            if (!createdTagToggles.Contains(con) && !con.StartsWith("was_")) {
-                GameObject toggle = Instantiate(templateTagToggle, templateTagToggle.transform.position, new Quaternion(), templateTagToggle.transform.parent);
-                toggle.SetActive(true);
-                createdTagToggles.Add(con);
-                toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = con;
-                fieldToggles.Add(toggle);
-            }
-        }
-    }
-    
-    private void CreateScoreToggles(string conditions) {
-        string[] split = conditions.Split("|");
-        foreach (string con in split) {
-            if (!createdScoreToggles.Contains(con)) {
-                GameObject toggle = Instantiate(templateScoreToggle, templateScoreToggle.transform.position, new Quaternion(), templateScoreToggle.transform.parent);
-                toggle.SetActive(true);
-                createdScoreToggles.Add(con);
-                string[] score = con.Split(" ");
-                toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text = score[score.Length-2] + " " + score[score.Length-1];
-                fieldToggles.Add(toggle);
-            }
-        }
-    }
-    public void ToggleTag() {
-        enabledTags.Clear();
-        foreach (GameObject toggle in fieldToggles) {
-            if (toggle.GetComponent<Toggle>() != null && toggle.GetComponent<Toggle>().isOn) enabledTags.Add(toggle.transform.GetChild(1).gameObject.GetComponent<Text>().text);
-        }
-        foreach (GameObject modelPart in modelParts) {
-            modelPart.GetComponent<OLDModelDisplay>().GetState();
-        }
-    }
-    private void GetAnimations(string path, string animationNamespace, string animationID) {
-        //TODO: If there's sub-animations, check if root-animations call their functions, if so, ignore
-        if (singleModelObject) {
-            foreach (string folder in Directory.GetDirectories(path + animationID + "/")) {
-                string[] split = folder.Split("/");
-                string animationName = animationID + "/" + split[split.Length-1];
-                foreach (string file in Directory.GetFiles(path + animationID + "/")) {
-                    string[] split2 = file.Split("/");
-                    //Detect sub-entity group; their animations should not be included in this entity group's animation list
-                    if (split2[split2.Length-1] == "call_part_function.mcfunction") {
-                        return;
-                    }
-                    else if (split2[split2.Length-1] == "main.mcfunction") {
-                        return;
-                    }
-                }
-                GetAnimations(path, animationNamespace, animationName);
-            }
-            foreach (string file in Directory.GetFiles(path + animationID + "/")) {
-                string[] split = file.Split("/");
-                string[] fullySplit = split[split.Length-1].Split(".");
-                animationSelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(animationNamespace + ":" +animationID + "/" + fullySplit[0]));
-            }
-        }
-        else {
-            foreach (string file in Directory.GetFiles(path + animationID + "/")) {
-                animationSelector.GetComponent<TMP_Dropdown>().options.Add(new TMP_Dropdown.OptionData(animationNamespace + ":" +animationID));
-                break;
-            }
-            foreach (string folder in Directory.GetDirectories(path + animationID + "/")) {
-                string[] split = folder.Split("/");
-                string animationName = animationID + "/" + split[split.Length-1];
-                GetAnimations(path, animationNamespace, animationName);
-            }
-        }
+    private void GetAnimations(string path, string animationNamespace, string animationID)
+    {
+
     }
     public void AnimationSelected() {
         TMP_Dropdown dropdown = animationSelector.GetComponent<TMP_Dropdown>();
@@ -735,57 +504,6 @@ public class Main : MonoBehaviour
         }
         else {
             selectedAnimation = dropdown.options[dropdown.value].text;
-        }
-    }
-
-    private void SaveModels() {
-        OLDSavedEntities savedEntities = new();
-        if (File.Exists(executionPath + "animator settings/models/" + selectedWorld + ".json")) {
-            savedEntities = JsonConvert.DeserializeObject<OLDSavedEntities>(File.ReadAllText(executionPath + "animator settings/models/" + selectedWorld + ".json"));
-        }
-        bool success = false;
-        foreach (OLDSavedEntity savedEntity in savedEntities.entities) {
-            if (savedEntity.name == entityID[0] + ":" + entityID[1]) {
-                savedEntity.parts = parts;
-                success = true;
-                break;
-            }
-        }
-        if (!success) {
-            OLDSavedEntity savedEntity = new(entityID, parts);
-            savedEntities.entities.Add(savedEntity);
-        }
-        using (StreamWriter outputFile = new(Path.Combine(executionPath + "animator settings/models/" + selectedWorld + ".json")))
-        {
-            outputFile.WriteLine(JsonConvert.SerializeObject(savedEntities,Formatting.Indented));
-        }
-    }
-    public void SetSelectedModelPart(GameObject selectedModelPart) {
-        if (this.selectedModelPart != selectedModelPart) {
-            if (this.selectedModelPart != null) this.selectedModelPart.GetComponent<OLDModelDisplay>().UnHighlight();
-            if (selectedModelPart != null) selectedModelPart.GetComponent<OLDModelDisplay>().Highlight();
-            this.selectedModelPart = selectedModelPart;
-        }
-        if (selectedModelPart != null) {
-            //Show left menu
-        }
-    }
-
-    public void SetModelOffset() {
-        try {
-            entity.transform.localPosition = new(0,Convert.ToSingle(entityOffsetInput.GetComponent<TMP_InputField>().text),0);
-        }
-        catch {
-            entity.transform.localPosition = new(0,0,0);
-        }
-    }
-    public void SetModelOffsetEnd() {
-        try {
-            entity.transform.localPosition = new(0,Convert.ToSingle(entityOffsetInput.GetComponent<TMP_InputField>().text),0);
-        }
-        catch {
-            entityOffsetInput.GetComponent<TMP_InputField>().text = "0";
-            entity.transform.localPosition = new(0,0,0);
         }
     }
 }

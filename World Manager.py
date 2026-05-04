@@ -175,7 +175,6 @@ while True:
                 break
             elif selected == "rules":
                 write("Rules:")
-                write("* Game rule \"minecraft:send_command_feedback\" set to false")
                 write("* Cheats disabled")
                 write("* No player data remaining")
                 write("* No save progress remaining")
@@ -537,7 +536,7 @@ while True:
                 write("English (Upside-down) is already generated")
             elif selected == "build" and alreadyBuild == False:
                 write("Running download building")
-                continueBuilding = "u"
+                continueBuilding = False
                 if verifySucceeded == False:
                     write("BUILD: Please verify or reset the map first; if it's not properly reset, building is not allowed")
                 else:
@@ -551,11 +550,14 @@ while True:
                             write("BUILD: Please update the translations first, or they'll be outdated; download them from crowdin")
                         elif verify == "s":
                             write("BUILD: Minor update with no string changes; skipping verification")
+                            continueBuilding = True
                         elif verify == "y":
                             if upsidedownUpdated == False:
                                 write("BUILD: Please update the upside down translations first, or it'll be outdated")
                                 verify = "n"
-                if continueBuilding == "y" or verify == "s":
+                            else:
+                                continueBuilding = True
+                if continueBuilding == True:
                     write("BUILD: What is the version number?")
                     versionNumber = input()
                     zipName = map + " (v" + versionNumber + ").zip"
