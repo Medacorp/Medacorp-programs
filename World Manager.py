@@ -400,8 +400,6 @@ while True:
                                 if datafile != "world_gen_settings.dat":
                                     write("RESET: Global data file \"minecraft:" + datafile + "\" has been deleted")
                                     os.remove(os.path.join(path + map + "/data/minecraft/" + datafile))
-                                    shutil.rmtree(os.path.join(path + map + "/data/minecraft"))
-                                    os.remove(os.path.join(path + map + "/session.lock"))
                                 else:
                                     missingWorldGenSettings = False
                                     nbtfile = nbt.NBTFile(path + map + "/data/minecraft/world_gen_settings.dat", "rb")
