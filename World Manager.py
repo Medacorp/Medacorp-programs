@@ -199,10 +199,13 @@ while True:
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
                 for tag in nbtfile["Data"]["difficulty_settings"].tags:
-                    if tag.name == "normal" and tag.value != "normal":
+                    if tag.name == "difficulty" and tag.value != "normal":
                         write("VERIFY: Difficulty is not set to normal")
                         succeed = False
                 for tag in nbtfile["Data"].tags:
+                    if tag.name == "GameType" and tag.value != 2:
+                        write("VERIFY: Game mode not set to adventure")
+                        succeed = False
                     if tag.name == "allowCommands" and tag.value == 1:
                         write("VERIFY: Cheats are enabled")
                         succeed = False
@@ -310,7 +313,16 @@ while True:
                 nbtfile = nbt.NBTFile(path + map + "/level.dat", "rb")
                 nbtfile.name = 'level'
                 modify = False
+                for tag in nbtfile["Data"]["difficulty_settings"].tags:
+                    if tag.name == "difficulty" and tag.value != "normal":
+                        write("RESET: Difficulty set to normal")
+                        tag.value = "normal"
+                        modify = True
                 for tag in nbtfile["Data"].tags:
+                    if tag.name == "GameType" and tag.value != 2:
+                        write("RESET: Set game mode to adventure")
+                        tag.value = 2
+                        modify = True
                     if tag.name == "allowCommands" and tag.value == 1:
                         write("RESET: Disabled cheats")
                         tag.value = 0
